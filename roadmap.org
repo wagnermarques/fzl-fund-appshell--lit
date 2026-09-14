@@ -1,0 +1,324 @@
+#+TITLE: Roadmap — fzl-fund-appshell--lit
+#+AUTHOR: FzlSoft
+#+DATE: [2026-09-14 seg]
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:2
+
+* Visão geral
+
+Este projeto é um *appshell* de referência: uma casca de aplicação (shell)
+reutilizável, pronta para instalar como PWA, que serve de ponto de partida
+para os demais projetos da família =fzlbpms-funds= (e, potencialmente,
+outros produtos da FzlSoft). A ideia não é construir um framework próprio,
+e sim fixar um conjunto pequeno e bem testado de decisões técnicas — stack,
+estrutura de pastas, padrões de estado, camada opcional de backend, PWA e
+deploy — para que iniciar um novo app deixe de ser "decidir tudo de novo" e
+passe a ser "copiar o shell e trocar o domínio".
+
+O nome do diretório (=fzl-fund-appshell--lit=) já marca duas decisões:
+- é o appshell da linha "funds" da FzlSoft;
+- é a variante construída em [[https://lit.dev][Lit]] — o sufixo =--lit= deixa margem para,
+  no futuro, existir uma variante em outra stack sem colidir de nome.
+
+** Projeto de referência
+
+Como modelo de base tecnológica e de funcionalidades, usamos o projeto já
+existente em =temp/biblereaderapp= (Bíblia PWA). Não é um projeto do mesmo
+domínio de negócio, mas é exatamente o tipo de aplicação que este appshell
+precisa suportar bem: PWA instalável, 100% funcional offline, com uma
+camada de sincronização *opcional* contra um backend gerenciado. É um bom
+modelo porque as decisões difíceis (offline-first, sync com fila,
+autenticação opcional, tema, deploy) já foram tomadas e testadas ali — o
+trabalho aqui é extrair o que é *genérico* e descartar o que é específico
+do domínio bíblico.
+
+* Por que esta stack
+
+| Peça               | Escolha                          | Motivo                                                                 |
+|---------------------+-----------------------------------+-------------------------------------------------------------------------|
+| Componentes de UI  | Web Components nativos ([[https://lit.dev][Lit]])    | Sem vendor lock-in de framework; interoperável com qualquer host page  |
+| Design system      | [[https://github.com/material-components/material-web][Material Web]] (Material 3)         | Componentes prontos e acessíveis, tema claro/escuro de fábrica          |
+| Build              | [[https://vitejs.dev][Vite]]                              | Padrão de mercado, rápido, zero config para o caso comum                |
+| PWA                | [[https://vite-pwa-org.netlify.app/][vite-plugin-pwa]] (Workbox)         | Manifest + service worker gerados, sem reinventar caching               |
+| Roteamento         | Hash router artesanal (~50 linhas) | Funciona em GitHub Pages e qualquer host estático sem configurar rewrite |
+| Estado local       | =localStorage= via *storage-service* | Offline-first real: o app funciona sem rede e sem conta desde o início  |
+| Backend opcional   | [[https://supabase.com][Supabase]] (Postgres + Auth + RLS)  | Só entra em cena se as env vars existirem; sem elas, nada muda no app   |
+| Deploy             | GitHub Actions → GitHub Pages     | Zero infra própria para o caso comum de app estático                   |
+
+A escolha mais importante aqui não é nenhuma tecnologia isolada, é o
+*padrão de camadas*: tudo funciona 100% sem backend, e o backend — quando
+configurado — só sincroniza o que já existe localmente. Esse é o contrato
+que queremos herdar para todo appshell derivado.
+
+* Arquitetura do appshell
+
+** Estrutura de pastas (proposta, herdada do biblereaderapp)
+
+#+begin_example
+src/
+  components/
+    app-shell.js       # casca: top bar, drawer de navegação, toast de update
+    nav-accordion.js    # seção colapsável do menu lateral
+    md-imports.js       # registro central dos web components do Material usados
+  services/
+    storage-service.js  # localStorage local-first (tema, fonte, fila de sync…)
+    auth-service.js      # wrapper fino sobre supabase.auth (no-op se não configurado)
+    sync-service.js      # fila outbox + flush + pull, status observável
+    backend-client.js    # cliente do backend opcional (ex.: supabase-client.js)
+  styles/
+    theme.css            # tokens de cor Material 3, claro/escuro
+  router.js               # hash router genérico
+  main.js
+public/
+  icons/                 # ícones do PWA (gerados a partir de um favicon.svg)
+  fonts/                 # Material Symbols autohospedado (funciona offline)
+scripts/
+  generate-icons.mjs     # gera public/icons/*.png a partir de public/favicon.svg
+supabase/                 # opcional — só existe em projetos que usam Supabase
+  migrations/0001_init.sql
+.github/workflows/deploy.yml
+#+end_example
+
+O que muda de projeto para projeto fica isolado: as *views* de domínio
+(equivalente a =chapter-view.js=, =search-view.js= no biblereaderapp), o
+schema de dados em =supabase/migrations/=, e o conteúdo de =public/data/=
+(se existir). O shell em si — top bar, drawer, tema, roteador, PWA,
+storage-service, auth/sync — deve ser praticamente copy-paste.
+
+** app-shell.js — a casca
+
+Do biblereaderapp herdamos o formato: uma =top-bar= fixa (menu, título,
+ações rápidas, indicador de sync, toggle de tema) + um
+=md-navigation-drawer-modal= com o menu organizado em seções via
+=nav-accordion= + uma área =<main>= que troca de conteúdo conforme a rota.
+Esse componente único concentra:
+- o estado de UI (drawer aberto/fechado, tema, escala de fonte);
+- a assinatura do roteador (troca a view renderizada);
+- o registro do service worker e o toast de "nova versão disponível" —
+  padrão importante para PWA instalável: o usuário decide quando recarregar,
+  em vez de a versão ativa trocar sem aviso.
+
+O menu do drawer é a parte mais óbvia de "template" — no biblereaderapp
+tem seções como "Livros", "Bíblias", "Marcações"; no appshell genérico
+ficam apenas os itens estruturais (Início, Sobre, Conta) e cada projeto
+derivado acrescenta as seções do seu próprio domínio.
+
+** Roteador
+
+Hash router deliberadamente simples (sem dependência), porque:
+- funciona em hospedagem 100% estática (GitHub Pages, S3, etc.) sem
+  precisar configurar rewrite de servidor;
+- é fácil de auditar e estender (o biblereaderapp tem uma nuance real
+  documentada nele: distinguir a hash de rota da hash que o Supabase usa
+  para devolver tokens de autenticação — =isAuthCallbackHash=). Isso é o
+  tipo de armadilha que vale a pena já vir resolvida no shell.
+
+** Tema e Material 3
+
+Tema claro/escuro/sistema com tokens de cor centralizados em
+=styles/theme.css=, e ícones do Material Symbols *autohospedados* (não via
+Google Fonts) — decisão que vale a pena manter: mantém o catálogo de
+ícones disponível offline e sem depender de domínio externo, essencial
+para um app PWA instalável.
+
+** storage-service — padrão local-first
+
+O storage-service do biblereaderapp tem um padrão que vale generalizar
+tal como está: uma pequena camada de =readJSON=/=writeJSON= sobre
+=localStorage=, com helpers genéricos de lista com chave
+(=toggleInList=, =mergeIntoList=, =isInList=) que qualquer domínio pode
+reaproveitar (favoritos, itens lidos, marcações — no domínio de "funds"
+seria, por exemplo, itens fixados, filtros salvos, rascunhos). O appshell
+deve trazer só os helpers genéricos + as chaves estruturais (tema, escala
+de fonte, fila de sync); as chaves de domínio (bookmarks, marked-texts)
+não fazem parte do shell.
+
+** Camada opcional de backend (auth + sync)
+
+Este é o pedaço mais valioso a herdar, porque é o mais fácil de errar:
+- =backend-client.js=: cria o client só se as env vars existirem;
+  caso contrário exporta =null= e todo o resto do app trata isso como
+  "modo 100% local, sem conta".
+- =auth-service.js=: wrapper fino, síncrono para o usuário atual,
+  observável via =subscribe()=.
+- =sync-service.js=: fila *outbox* em =localStorage= (mudança é
+  gravada local primeiro, sempre), com *debounce*, *flush* seqüencial
+  que para no primeiro erro de transporte (preserva ordem), distinção
+  entre erro de transporte (retry) e erro definitivo do servidor
+  (marca como falho e não repete), e status observável
+  (=synced/pending/syncing/offline/error=) para a UI mostrar um
+  indicador de sincronização.
+- Schema Postgres com *Row Level Security* desde a primeira migration,
+  e criação automática do perfil via trigger em =auth.users=.
+
+Esse conjunto (outbox + RLS + client condicional) é o "kit de sync
+opcional" do appshell. Um projeto derivado que não precisa de conta
+alguma simplesmente não copia =supabase/= nem os três services — o
+resto do shell não depende deles.
+
+** PWA / offline
+
+=vite-plugin-pwa= com =registerType: 'prompt'= (nunca troca a versão em
+uso sem avisar), precache do essencial da aplicação, e um padrão de
+*runtime caching seletivo* para dados grandes — no biblereaderapp, só a
+tradução padrão entra no precache (~4&nbsp;MB) e as demais são cacheadas sob
+demanda no primeiro acesso. Esse padrão — "precache o mínimo necessário
+para o app abrir, cache sob demanda o resto" — é o que evita instalar
+PWA gigante em projetos com muito dado estático.
+
+* O que fica de fora do appshell (específico do domínio bíblico)
+
+Para deixar claro o que é modelo e o que é domínio, isto *não* faz parte
+do appshell genérico:
+- =translations.js=, =bible-data-service.js=, =search-service.js= e as
+  views de leitura/capítulo/busca — são o domínio do leitor de Bíblia;
+- os dados em =public/data/<tradução>/=;
+- as chaves de storage de domínio (=bookmarks=, =marked-texts=,
+  =read-verses=) — o *padrão* (lista com chave, toggle, merge) fica; os
+  dados em si, não;
+- as tabelas =bookmarks=/=read_verses= da migration — ficam como
+  *exemplo* de "como desenhar uma tabela com RLS a partir daqui", não
+  como schema de produção do appshell.
+
+* Convenções para projetos derivados
+
+- Trocar =REPO_NAME= em =vite.config.js= (usado no =base= do Vite e,
+  possivelmente, no nome do repo do GitHub Pages).
+- Trocar =manifest.name=/=short_name=/=theme_color=/=background_color= em
+  =vite.config.js= e regenerar ícones com =scripts/generate-icons.mjs= a
+  partir de um novo =public/favicon.svg=.
+- Cada projeto derivado decide, independentemente, se usa a camada
+  Supabase (copia =supabase/= + os três services) ou fica só local
+  (não copia nada disso — o shell não deve ter esses arquivos como
+  obrigatórios).
+- Branch =main= como branch de trabalho e =production= como branch de
+  deploy (ligada ao workflow do GitHub Pages) — convenção herdada do
+  biblereaderapp, vale manter por padronizar o fluxo entre todos os apps
+  da família.
+
+* Licenciamento
+
+O biblereaderapp usa AGPL-3.0 *especificamente* por causa do recurso de
+sincronização em rede opcional (é a cláusula de uso em rede da AGPL que
+faz diferença ali). Para um appshell interno da FzlSoft isso é uma
+decisão em aberto, não herdada automaticamente — ver seção de decisões
+pendentes abaixo.
+
+* Roteiro por fases
+
+** DONE Levantamento do projeto de referência
+Leitura de =biblereaderapp= (stack, estrutura, app-shell, router,
+storage-service, auth/sync, PWA, deploy) e deste roadmap.
+
+** DONE M1 — Esqueleto do shell
+- =package.json= com Lit + =@material/web= + =@material-symbols/font-400=
+  + Vite.
+- =main.js=, =router.js= (genérico, com a primeira rota de domínio —
+  =config/backend/servicos-rest=), =app-shell.js= com top bar + drawer
+  (=nav-accordion= aninhado: Config → Backend → Serviços REST).
+- =theme.css= com tokens claro/escuro (toggle de tema ainda não ligado
+  na top bar — só os tokens existem).
+- Primeira tela de configuração (=config-rest-services-view.js=) e o
+  padrão de serviço somente-leitura sobre env var
+  (=rest-config-service.js=) — ver =.env.example=/=.env.local=.
+
+*** TODO Inicializar repositório git deste projeto
+Ainda não feito — arquivos existem apenas no disco.
+
+** DONE M2 — PWA e ícones
+- =vite.config.js= com =vite-plugin-pwa= configurado (manifest em
+  pt-BR, =registerType: 'prompt'=, =injectRegister: null= + registro
+  manual em =app-shell.js= com toast de "nova versão disponível").
+- =scripts/generate-icons.mjs= + =public/favicon.svg= (marca provisória
+  — trocar pelo logo real do produto final).
+- Fonte Material Symbols autohospedada.
+- =home-view.js=: página inicial em pt-BR explicando o propósito do
+  appshell e exibindo os parâmetros de configuração atuais (lidos da
+  env var, com atalho para a tela de Config).
+- Validado com build de produção + preview (service worker ativo,
+  manifest servido, sem erros de console) — no modo =dev= o SW não
+  registra, por decisão deliberada (=devOptions= não habilitado),
+  então esse fluxo só se observa via =npm run build && npm run
+  preview=.
+
+** TODO [#B] M3 — storage-service genérico
+- Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
+  chave, tema, escala de fonte) — sem nenhuma chave de domínio.
+
+** TODO [#B] M4 — Camada opcional de backend
+- =backend-client.js= condicional a env vars (seguir o padrão
+  =supabase-client.js=, mas nomeado de forma neutra caso o backend possa
+  mudar — ver decisão pendente sobre Supabase vs. adapter).
+- =auth-service.js= (signUp/signIn/signOut/subscribe).
+- =sync-service.js= com outbox, debounce, flush idempotente e status
+  observável — como *template* genérico, com um único op de exemplo
+  documentando o padrão para o próximo projeto copiar.
+- Migration de exemplo com =profiles= + RLS + trigger de auto-criação.
+
+** TODO [#C] M5 — CI/CD
+- =.github/workflows/deploy.yml= parametrizado (build + deploy no GitHub
+  Pages), com as env vars do backend opcional injetadas via
+  =vars.*= quando existirem.
+
+** TODO [#C] M6 — Documentação e "como derivar um projeto novo"
+- README explicando o checklist de customização (seção "Convenções para
+  projetos derivados" acima) e como remover a camada de backend quando
+  não for usada.
+- Um segundo projeto real (dentro de =fzlbpms-funds=) nascendo a partir
+  deste shell, para validar que o checklist realmente basta.
+
+* Decisões pendentes / riscos
+
+- *Supabase é o backend padrão da família, ou só do biblereaderapp?*
+  Se a resposta for "cada projeto pode ter um backend diferente", vale a
+  pena desenhar =backend-client.js=/=auth-service.js= atrás de uma
+  interface pequena (signIn/signOut/subscribe/currentUser) em vez de já
+  nomear tudo com "supabase" — troca de fornecedor não deveria implicar
+  reescrever o app-shell.
+- *Modelo de distribuição do template*: copiar a pasta manualmente,
+  usar um [[https://docs.github.com/pt/repositories/creating-and-managing-repositories/creating-a-template-repository][repositório-modelo do GitHub]], ou uma ferramenta tipo
+  [[https://github.com/Rich-Harris/degit][degit]]/=npm create=? Isso decide se este repo deve ficar sem histórico
+  de commits de domínio nenhum, para servir de template literal.
+- *Licença*: decidir se este appshell (e os projetos derivados sem
+  Supabase) precisam mesmo de AGPL, ou se — sendo software interno da
+  FzlSoft, sem redistribuição pública — faz mais sentido uma licença
+  proprietária/interna simples, reservando AGPL só para quando um
+  projeto específico tiver o mesmo motivo do biblereaderapp (sync em
+  rede opcional e distribuição pública).
+- *Múltiplos frameworks de UI*: o sufixo =--lit= no nome do repo sugere
+  que pode existir uma variante não-Lit no futuro. Vale confirmar se
+  isso é intenção real antes de investir em abstrações "framework
+  agnostic" prematuras no shell.
+
+* Sugestões adicionais
+
+Algumas idéias que não vieram do biblereaderapp, mas que valem
+considerar para este ser de fato um bom ponto de partida repetível:
+
+- *Testes desde o início*: o biblereaderapp de referência não tem
+  suíte de testes; para um *template*, vale já nascer com
+  [[https://vitest.dev][Vitest]] configurado (ao menos para o storage-service e o router, que
+  são puros e fáceis de testar), para que cada projeto derivado herde o
+  hábito em vez de adicionar depois.
+- *Lint/format consistentes*: ESLint + Prettier (ou Biome) no shell,
+  para que toda a família de apps tenha o mesmo estilo sem decisão
+  repetida por projeto.
+- *Tokens de marca separados do Material 3 default*: extrair as cores
+  em =theme.css= como variáveis próprias por cima dos tokens
+  =--md-sys-color-*=, para trocar a identidade visual de cada app sem
+  reescrever o CSS inteiro — hoje o biblereaderapp usa a paleta padrão
+  do Material.
+- *Storybook (ou equivalente leve) para os componentes do shell*:
+  como =app-shell.js= e =nav-accordion.js= vão se repetir em vários
+  projetos, catalogar visualmente esses componentes ajuda a revisar
+  mudanças no shell sem precisar rodar cada app derivado.
+- *i18n desde o shell, mesmo com um só idioma hoje*: o biblereaderapp
+  tem todo texto em português direto no template literal. Se algum
+  projeto da família precisar de outro idioma no futuro, vale isolar as
+  strings estruturais do shell (menu, botões de tema, toast de update)
+  desde já, em vez de fazer essa extração depois com N projetos já
+  copiados.
+- *Verificação automática do checklist de "novo projeto"*: um script
+  simples (=scripts/rename-project.mjs=?) que já troca =REPO_NAME=,
+  nome do manifest e regenera ícones a partir de um novo favicon,
+  reduz o checklist manual da seção acima a um comando.

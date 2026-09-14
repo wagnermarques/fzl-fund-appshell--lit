@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+
+# Projeto de referência (biblereaderapp) usado como modelo para este
+# appshell — tem seu próprio repositório git e node_modules; não faz
+# parte deste projeto. Ver roadmap.org.
+/temp
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
