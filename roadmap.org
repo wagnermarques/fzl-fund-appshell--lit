@@ -56,10 +56,14 @@ que queremos herdar para todo appshell derivado.
 
 #+begin_example
 src/
-  components/
+  webcomponents/         # nossos Lit web components — isolados aqui para
+                         # poderem ser extraídos e reaproveitados por outros
+                         # projetos da família mais adiante (ver M3 abaixo)
     app-shell.js       # casca: top bar, drawer de navegação, toast de update
     nav-accordion.js    # seção colapsável do menu lateral
     md-imports.js       # registro central dos web components do Material usados
+    home-view.js         # view de domínio (página inicial)
+    config-rest-services-view.js  # view de domínio (config do backend)
   services/
     storage-service.js  # localStorage local-first (tema, fonte, fila de sync…)
     auth-service.js      # wrapper fino sobre supabase.auth (no-op se não configurado)
@@ -271,6 +275,14 @@ próprio =.git=) ficou de fora via =.gitignore=.
 
 * Decisões pendentes / riscos
 
+- *=src/webcomponents/= hoje mistura dois tipos de componente*: os
+  genéricos do shell (=app-shell.js=, =nav-accordion.js=,
+  =md-imports.js=) e as views de domínio deste projeto específico
+  (=home-view.js=, =config-rest-services-view.js=). Isolar tudo num só
+  lugar foi o primeiro passo para permitir reaproveitar; o próximo,
+  quando a reutilização entre projetos for de fato necessária, é
+  separar os dois (ex.: =webcomponents/shell/= vs. =webcomponents/views/=,
+  ou extrair só o primeiro grupo para um pacote próprio).
 - *Supabase é o backend padrão da família, ou só do biblereaderapp?*
   Se a resposta for "cada projeto pode ter um backend diferente", vale a
   pena desenhar =backend-client.js=/=auth-service.js= atrás de uma
