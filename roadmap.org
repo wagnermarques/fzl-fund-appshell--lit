@@ -222,8 +222,10 @@ storage-service, auth/sync, PWA, deploy) e deste roadmap.
   padrão de serviço somente-leitura sobre env var
   (=rest-config-service.js=) — ver =.env.example=/=.env.local=.
 
-*** TODO Inicializar repositório git deste projeto
-Ainda não feito — arquivos existem apenas no disco.
+*** DONE Inicializar repositório git deste projeto
+Repositório criado (branch =main=) e primeiro commit feito com o
+esqueleto do appshell. =temp/= (o biblereaderapp de referência, com seu
+próprio =.git=) ficou de fora via =.gitignore=.
 
 ** DONE M2 — PWA e ícones
 - =vite.config.js= com =vite-plugin-pwa= configurado (manifest em
