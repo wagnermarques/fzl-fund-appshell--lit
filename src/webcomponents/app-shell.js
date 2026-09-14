@@ -3,6 +3,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './home-view.js'
 import './config-rest-services-view.js'
 import './nav-accordion.js'
+import './app-footer.js'
 import { createRouter, navigateHome, navigateToConfigRestServices } from '../router.js'
 
 export class AppShell extends LitElement {
@@ -14,20 +15,20 @@ export class AppShell extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       height: 100%;
     }
     .top-bar {
       display: flex;
       align-items: center;
       gap: 8px;
+      flex: 0 0 auto;
       height: 56px;
       padding: 0 8px;
       background: var(--md-sys-color-surface);
       color: var(--md-sys-color-on-surface);
       border-bottom: 1px solid var(--md-sys-color-outline);
-      position: sticky;
-      top: 0;
     }
     .top-bar h1 {
       font-size: 1.1rem;
@@ -36,7 +37,8 @@ export class AppShell extends LitElement {
       cursor: pointer;
     }
     main {
-      height: calc(100% - 56px);
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
     }
     /* Cinto e suspensório: além do z-index abaixo (que resolve o
@@ -46,7 +48,8 @@ export class AppShell extends LitElement {
        de uma ação clicável ali deve usar texto/link simples, não um
        componente com camadas internas próprias (ex.: md-text-button),
        que pode escapar do empilhamento do drawer. */
-    main[inert] {
+    main[inert],
+    app-footer[inert] {
       pointer-events: none;
     }
     md-navigation-drawer-modal {
@@ -185,6 +188,8 @@ export class AppShell extends LitElement {
       </md-navigation-drawer-modal>
 
       <main ?inert=${this._drawerOpen}>${this._renderRoute()}</main>
+
+      <app-footer ?inert=${this._drawerOpen}></app-footer>
 
       ${this._updateAvailable
         ? html`

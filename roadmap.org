@@ -64,6 +64,11 @@ src/
     md-imports.js       # registro central dos web components do Material usados
     home-view.js         # view de domínio (página inicial)
     config-rest-services-view.js  # view de domínio (config do backend)
+    app-footer.js         # rodapé fixo — hospeda os widgets abaixo + <slot>
+                          # para um projeto derivado acrescentar mais
+    connection-status.js  # online/offline + tipo de rede (Network Info API)
+    app-clock.js           # dia da semana + data + hora, ao vivo
+    app-version.js          # versão do package.json (via __APP_VERSION__)
   services/
     storage-service.js  # localStorage local-first (tema, fonte, fila de sync…)
     auth-service.js      # wrapper fino sobre supabase.auth (no-op se não configurado)

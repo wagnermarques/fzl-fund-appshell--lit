@@ -1,7 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
 export default defineConfig({
+  define: {
+    // Lido por src/webcomponents/app-version.js — substituição literal em
+    // tempo de build, não uma env var (não precisa de VITE_ prefix).
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     VitePWA({
       registerType: 'prompt',
