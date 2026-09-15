@@ -439,10 +439,13 @@ próprio =.git=) ficou de fora via =.gitignore=.
   então esse fluxo só se observa via =npm run build && npm run
   preview=.
 
-** TODO [#A] A1 — Uso como submódulo (pontos de extensão)
-Detalhes em [[*Uso como submódulo git (pontos de extensão)][Uso como submódulo git]]. É pré-requisito do
-=legisreader= e passa na frente de M3–M6. Os passos são pensados para
-commits pequenos, cada um deixando o app de demonstração funcionando:
+** DONE [#A] A1 — Uso como submódulo (pontos de extensão)
+CLOSED: [2026-09-15 ter]
+Detalhes em [[*Uso como submódulo git (pontos de extensão)][Uso como submódulo git]]. Era pré-requisito do
+=legisreader= e passava na frente de M3–M6. Os passos foram pensados
+para commits pequenos, cada um deixando o app de demonstração funcionando —
+validado de ponta a ponta com o =legisreader= como segundo consumidor
+real no A1.6.
 
 *** DONE A1.1 — Testes e router genérico
 CLOSED: [2026-09-15 ter]
@@ -484,6 +487,21 @@ CLOSED: [2026-09-15 ter]
     run preview=): home renderiza via =config.home()=, =#/nao/existe= →
     "Página não encontrada", =Entrar= → =#/conta/entrar=, sem erros no
     console.
+
+**** Correção [2026-09-15 ter] (durante a validação do A1.6)
+=createAppShell= montava o =<app-shell>= via =container.innerHTML =
+'<app-shell></app-shell>'= e só depois atribuía =shell.routes=/
+=shell.home=/etc. Como =connectedCallback()= já cria o router
+sincronamente ao elemento entrar no DOM (lendo =this.routes= naquele
+instante), o router ficava permanentemente preso à lista vazia do
+construtor — nenhuma rota de app jamais casava, e toda navegação caía
+em =home=/=not-found= mesmo com rotas válidas configuradas. Só não foi
+percebido antes porque nenhuma validação anterior tinha de fato testado
+uma rota de app através de =createAppShell()= de ponta a ponta (o A1.2
+só testou as rotas estruturais fixas do shell). Corrigido criando o
+elemento com =document.createElement('app-shell')=, setando todas as
+propriedades e só depois inserindo no container
+(=container.replaceChildren(shell)=).
 
 *** DONE A1.3 — Drawer, header, footer e título
 CLOSED: [2026-09-15 ter]

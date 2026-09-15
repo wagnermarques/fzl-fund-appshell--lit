@@ -94,7 +94,13 @@ export function validateConfig(config) {
 /** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
  *  e o título do app. mount pode ser um seletor CSS ou o próprio elemento
  *  container. Pressupõe que o custom element 'app-shell' já foi registrado
- *  (index.js cuida disso antes de expor esta função). */
+ *  (index.js cuida disso antes de expor esta função).
+ *
+ *  As propriedades são setadas *antes* do elemento entrar no DOM — nunca
+ *  via innerHTML + set depois — porque connectedCallback() já cria o
+ *  router lendo this.routes naquele instante; setar depois de conectado
+ *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
+ *  app jamais casaria. */
 export function createAppShell(config) {
   const { mount, routes, home, title, drawer, headerActions, footerItems } = validateConfig(config)
 
@@ -103,13 +109,14 @@ export function createAppShell(config) {
     throw new Error(`createAppShell: elemento não encontrado para mount "${mount}"`)
   }
 
-  container.innerHTML = '<app-shell></app-shell>'
-  const shell = container.querySelector('app-shell')
+  const shell = document.createElement('app-shell')
   shell.routes = routes
   shell.home = home
   shell.title = title
   shell.drawer = drawer
   shell.headerActions = headerActions
   shell.footerItems = footerItems
+
+  container.replaceChildren(shell)
   return shell
 }
