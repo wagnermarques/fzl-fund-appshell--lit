@@ -1,3 +1,11 @@
+/* Autohospedado via @material-symbols/font-400 (não via Google Fonts), para
+   o catálogo de ícones funcionar 100% offline e não depender de um domínio
+   externo — essencial para um app PWA instalável. Importar o CSS do pacote
+   (em vez de copiar o .woff2 pra public/) deixa o Vite bundlar a fonte com
+   hash e aplicar o base correto em qualquer app — public/ é sempre do app,
+   nunca do shell. */
+@import '@material-symbols/font-400/outlined.css';
+
 /* Material 3 color tokens — generated from a seed color (#6750a4).
    Replace with your own palette from https://m3.material.io/theme-builder if desired. */
 :root {
@@ -71,16 +79,6 @@
     --md-sys-color-inverse-primary: #6750a4;
     color-scheme: dark;
   }
-}
-
-/* Self-hosted so the icon set works fully offline and doesn't depend on
-   Google Fonts. */
-@font-face {
-  font-family: 'Material Symbols Outlined';
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
 }
 
 * {

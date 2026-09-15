@@ -1,31 +1,13 @@
-import { readFileSync } from 'node:fs'
-import { defineConfig } from 'vite'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig, mergeConfig } from 'vite'
+import { appshellConfig } from './vite/preset.js'
 
-const { name, version } = JSON.parse(readFileSync('./package.json', 'utf-8'))
-
-export default defineConfig({
-  define: {
-    // Lido por src/webcomponents/app-version.js — substituição literal em
-    // tempo de build, não uma env var (não precisa de VITE_ prefix).
-    __APP_VERSION__: JSON.stringify(version),
-    // Lido por src/storage-keys.js. Aqui (o próprio shell rodando como
-    // demo) usa o name deste package.json; um app consumidor via A1.5
-    // define o seu próprio (o preset do Vite cuida disso).
-    __APP_STORAGE_PREFIX__: JSON.stringify(name),
-  },
-  plugins: [
-    VitePWA({
-      registerType: 'prompt',
-      injectRegister: null,
-      includeAssets: ['favicon.svg'],
+export default defineConfig(
+  mergeConfig(
+    appshellConfig({
       manifest: {
         name: 'Fund Appshell',
         short_name: 'Appshell',
         description: 'Appshell de referência para os projetos fzlbpms-funds',
-        lang: 'pt-BR',
-        start_url: '.',
-        display: 'standalone',
         background_color: '#fffbfe',
         theme_color: '#6750a4',
         icons: [
@@ -41,9 +23,7 @@ export default defineConfig({
           { src: 'icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,json,webmanifest,woff2}'],
-      },
     }),
-  ],
-})
+    {},
+  ),
+)

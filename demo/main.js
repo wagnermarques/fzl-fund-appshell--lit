@@ -1,7 +1,7 @@
 import { html } from 'lit'
-import './styles/theme.css'
-import '../demo/home-view.js'
-import { createAppShell } from './index.js'
+import '../src/styles/theme.css'
+import './home-view.js'
+import { createAppShell } from '../src/index.js'
 
 createAppShell({
   mount: '#app',

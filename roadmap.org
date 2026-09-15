@@ -551,12 +551,49 @@ CLOSED: [2026-09-15 ter]
     real: =__APP_STORAGE_PREFIX__= é uma constante de build única por
     bundle, não dá pra variar dentro de uma mesma suíte de testes.)
 
-*** TODO A1.5 — Preset do Vite, dependências e assets
-- =vite/preset.js= (=appshellConfig=), =exports= e =peerDependencies= no
-  =package.json=, alinhamento de versões (Vite 7 → 8, como no
-  biblereaderapp).
-- Fonte importada por caminho relativo; =generate-icons= com =--svg=/=--out= e =bin=.
-- O =vite.config.js= do shell passa a usar o próprio preset (demo).
+*** DONE A1.5 — Preset do Vite, dependências e assets
+CLOSED: [2026-09-15 ter]
+- =vite/preset.js= — =appshellConfig({ base, manifest, storagePrefix,
+  includeAssets, workbox })=: lê =name=/=version= do =package.json= do
+  diretório onde o Vite roda (=process.cwd()= — o app consumidor; este
+  repositório, quando roda sozinho como demo) e entrega o =define= de
+  =__APP_VERSION__=/=__APP_STORAGE_PREFIX__=, =resolve.dedupe: ['lit',
+  '@material/web']= e o =VitePWA= (=registerType: 'prompt'=,
+  =injectRegister: null=, manifest com os campos comuns). =vite.config.js=
+  deste repo passa a chamar =appshellConfig()= + =mergeConfig()=, só com o
+  manifest específico da demo.
+- =package.json=: novo campo =exports= (=.=, =./vite=, =./styles/theme.css=,
+  =./webcomponents/*=); =lit=, =@material/web=,
+  =@material-symbols/font-400=, =vite= e =vite-plugin-pwa= viram
+  =peerDependencies= (e continuam em =devDependencies=, pra este repo
+  continuar rodando sozinho); Vite =^7= → =^8= e =vite-plugin-pwa= =^1.0=
+  → =^1.3= (primeira versão com =vite= =^8= no seu =peerDependencies=).
+- Fonte: =theme.css= troca o =@font-face= com =url('/fonts/…')= (que
+  dependia de copiar o =.woff2= pro =public/= de cada app) por
+  =@import '@material-symbols/font-400/outlined.css'= — o Vite bundla a
+  fonte com hash e aplica o =base= correto sozinho. =public/fonts/= saiu
+  do repo.
+- =scripts/generate-icons.mjs= ganha =--svg=/=--out= (padrão:
+  =public/favicon.svg=/=public/icons=, resolvidos a partir do diretório
+  onde o comando roda) e é exposto como =bin=
+  (=appshell-generate-icons=, executável via =npx=).
+- =demo/= vira o "app" de fato: =src/main.js= → =demo/main.js= (ao lado
+  de =demo/home-view.js=, do A1.3); =index.html= aponta pra lá.
+- Resultado:
+  - =npm test= — 43 testes, sem mudança (nenhum teste tocava nesses
+    arquivos).
+  - Build de produção OK com Vite 8 (=vite v8.3.0=); a fonte aparece
+    como asset com hash próprio (=material-symbols-outlined-*.woff2=,
+    ~445&nbsp;KB) em vez de ir pro precache do =public/=.
+  - Verificado no navegador (=npm run build && npm run preview=): ícones
+    do drawer renderizam normalmente (login, person_add, expand_more —
+    não como texto "login" cru), requisição do =.woff2= com =200=, sem
+    erros no console.
+  - =node scripts/generate-icons.mjs --svg public/favicon.svg --out
+    /tmp/x= gera os 11 arquivos esperados num diretório novo (cria com
+    =mkdir -p=); rodado sem flags, regenera os mesmos arquivos em
+    =public/icons/= byte-a-byte idênticos aos existentes (=git status=
+    não os marca como modificados).
 
 *** TODO A1.6 — Validação com consumidor real
 - No =legisreader=: workspace npm + preset + =createAppShell= com uma rota

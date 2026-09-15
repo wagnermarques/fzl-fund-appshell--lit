@@ -1,12 +1,29 @@
 #!/usr/bin/env node
-// Regenerates public/icons/*.png from public/favicon.svg (the app's brand mark).
-// Run again whenever the logo changes: `node scripts/generate-icons.mjs`
+// Regenerates <out>/*.png from <svg> (the app's brand mark). Exposed as the
+// `appshell-generate-icons` bin: an app that uses this appshell as a
+// dependency runs `npx appshell-generate-icons` from its own root — icons
+// are always the app's, never the shell's (same reasoning as public/).
+//
+// Usage: appshell-generate-icons [--svg <path>] [--out <dir>]
+// Paths are resolved relative to the current working directory; the
+// defaults assume the common public/favicon.svg -> public/icons/ layout.
 import sharp from 'sharp'
-import { fileURLToPath } from 'node:url'
+import { mkdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
-const SVG = fileURLToPath(new URL('../public/favicon.svg', import.meta.url))
-const OUT_DIR = fileURLToPath(new URL('../public/icons/', import.meta.url))
-const BG = '#fffbfe' // matches manifest.background_color in vite.config.js
+function parseArgs(argv) {
+  const args = { svg: 'public/favicon.svg', out: 'public/icons' }
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--svg') args.svg = argv[++i]
+    else if (argv[i] === '--out') args.out = argv[++i]
+  }
+  return args
+}
+
+const { svg, out } = parseArgs(process.argv.slice(2))
+const SVG = resolve(process.cwd(), svg)
+const OUT_DIR = `${resolve(process.cwd(), out)}/`
+const BG = '#fffbfe' // matches manifest.background_color no vite.config.js do app
 
 // "any"-purpose icons: sizes covering Android/Chrome, Apple touch icon (180)
 // and Windows tiles, flattened onto the app's surface color so launchers
@@ -26,6 +43,8 @@ async function renderOnBg(size, markRatio, fileName) {
     .png()
     .toFile(`${OUT_DIR}${fileName}`)
 }
+
+await mkdir(OUT_DIR, { recursive: true })
 
 await Promise.all(SIZES.map((size) => renderOnBg(size, 0.72, `icon-${size}.png`)))
 
