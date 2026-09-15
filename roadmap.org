@@ -181,6 +181,183 @@ demanda no primeiro acesso. Esse padrão — "precache o mínimo necessário
 para o app abrir, cache sob demanda o resto" — é o que evita instalar
 PWA gigante em projetos com muito dado estático.
 
+** Uso como submódulo git (pontos de extensão)
+
+/Decisão de [2026-09-15 ter]: o appshell passa a ser consumido como
+*submódulo git* pelos apps da família, não copiado. O primeiro consumidor
+é o =legisreader= (=legisreader/appshell/=; lá, este trabalho é o marco
+A1)./
+
+Consequência: um app que usa o shell *não pode editar nenhum arquivo
+dele*. Tudo o que hoje está fixo e é específico de um app precisa virar
+configuração. Levantamento feito no commit =d4f13af=:
+
+| Ponto fixo hoje                                        | Onde                                         | Problema para o app hospedeiro                         |
+|--------------------------------------------------------+----------------------------------------------+--------------------------------------------------------|
+| Rotas em =parseHash()=; rota desconhecida cai em =home= | =src/router.js=                               | O app não consegue criar rotas, nem rotas com parâmetros |
+| =switch= em =_renderRoute()= e imports das views        | =app-shell.js=                               | O app não consegue renderizar as próprias views        |
+| Seções "Conta" e "Config" do drawer                    | =app-shell.render()=                          | O app não consegue acrescentar, ordenar ou esconder seções |
+| =<slot>= do =<app-header>=                              | Dentro do shadow DOM do =<app-shell>=, sem repasse | Inalcançável de fora; o slot existe, mas não serve    |
+| Título "Fund Appshell"                                 | =app-header.js=, =home-view.js=, =index.html= | Nome errado no app                                     |
+| Chaves =fzl-appshell:*=                                | =auth-service.js=, =notification-service.js=  | Apps em =wagnermarques.github.io/<repo>= compartilham a origem e, portanto, o =localStorage=: sessão e notificações vazariam entre apps |
+| Leitura da sessão *no momento do import*               | =auth-service.js= (=let currentUser = loadCurrentUser()=) | Uma configuração passada em runtime chegaria tarde demais para o prefixo |
+| Manifest, =define= de =__APP_VERSION__=, plugin PWA      | =vite.config.js= do shell                     | O Vite usa o config do *app*, e =virtual:pwa-register= quebra sem o plugin |
+| Fonte com URL absoluta =/fonts/…woff2=                  | =theme.css= + =public/fonts/= do shell        | Quebra com =base: '/<repo>/'= e o =public/= usado é o do app |
+| =generate-icons.mjs= com caminhos relativos ao shell    | =scripts/=                                   | Gera ícones dentro do submódulo, não no app            |
+| =lit= / =@material/web= em =dependencies=                | =package.json=                               | Risco de *duas cópias* do Lit no bundle → =customElements.define= falha com "already been defined" |
+
+*** API proposta: configuração declarativa única
+
+Recomendação: o app descreve tudo num único objeto, no próprio =main.js=,
+em vez de chamadas =registerX()= espalhadas. Fica explícito, é fácil de
+validar e testar, e o próprio appshell passa a usar a mesma API como app
+de demonstração.
+
+#+begin_src js
+// legisreader/src/main.js (ilustrativo)
+import { createAppShell, pattern } from 'fzl-fund-appshell--lit'
+import 'fzl-fund-appshell--lit/styles/theme.css'
+import './webcomponents/norma-list-view.js'
+import './webcomponents/dispositivo-view.js'
+import './webcomponents/busca-campo.js'
+
+createAppShell({
+  mount: '#app',
+  title: 'LegisReader',
+
+  // Avaliadas em ordem, antes das rotas estruturais do shell.
+  routes: [
+    { name: 'busca', match: pattern('busca'),
+      render: ({ query }) => html`<busca-view .query=${query}></busca-view>` },
+    { name: 'dispositivo', match: pattern('br/*caminho'),
+      render: ({ params, query }) => html`<dispositivo-view .caminho=${params.caminho} .query=${query}></dispositivo-view>` },
+  ],
+  home: () => html`<norma-list-view></norma-list-view>`,
+
+  drawer: {
+    sections: [
+      { id: 'normas', label: 'Normas', icon: 'gavel', expanded: true,
+        render: () => html`<norma-nav></norma-nav>` },           // conteúdo livre
+      { id: 'estudo', label: 'Estudo', items: [
+          { label: 'Favoritos', icon: 'bookmark', href: '#/estudo/favoritos' },
+      ] },
+    ],
+    shellSections: { conta: true, config: false },              // seções do shell
+  },
+
+  headerActions: () => html`<busca-campo></busca-campo>`,
+  footerItems: () => html``,
+})
+#+end_src
+
+Detalhes:
+- *Rotas*: =match(segments, query)= devolve =params= ou =null=. O helper
+  =pattern()= cobre o caso comum (=:param=, =*resto=). A primeira rota que
+  casar vence, e as rotas do app são testadas antes das do shell
+  (=conta/*=, =config/*=). Uma rota inexistente mostra uma view "não
+  encontrada", em vez de cair silenciosamente em =home=.
+- *Navegação genérica*: =navigate(path, query?)= e =href(path, query?)=. Os
+  =navigateToLogin()= / =navigateToAccount()= atuais continuam como atalhos
+  das rotas estruturais do shell.
+- *Drawer*: seção com =items= (lista simples) ou =render= (conteúdo livre,
+  necessário para a árvore de uma norma). Um item pode ter =visible(user)=,
+  porque "Conta" já depende do usuário logado.
+- *Header e footer*: o =<app-shell>= renderiza =headerActions= e
+  =footerItems= dentro dos =<slot>= que =<app-header>= e =<app-footer>= já
+  expõem. Assim, esses slots passam a funcionar para quem está fora.
+- *Validação*: =createAppShell= valida a configuração e falha cedo, com
+  mensagem clara (rota sem =render=, =name= duplicado, seção sem =id=).
+
+*** Configuração em tempo de build: prefixo de storage e versão
+
+O =auth-service= lê a sessão *no momento do import*, e isso acontece antes
+de qualquer =createAppShell()= rodar. Por isso, o que precisa existir desde
+o import vem do *preset do Vite* como constante de build, igual ao
+=__APP_VERSION__= atual:
+- =__APP_STORAGE_PREFIX__=, com padrão igual ao =name= do =package.json= do app;
+- =__APP_VERSION__=, agora lido do =package.json= *do app*, não do shell.
+
+Um pequeno =storage-keys.js= (=storageKey('auth:session')= →
+=legisreader:auth:session=) passa a ser usado por =auth-service= e
+=notification-service=. É o embrião do M3.
+
+*** Preset do Vite
+
+#+begin_src js
+// legisreader/vite.config.js (ilustrativo)
+import { defineConfig, mergeConfig } from 'vite'
+import { appshellConfig } from 'fzl-fund-appshell--lit/vite'
+
+export default defineConfig(
+  mergeConfig(
+    appshellConfig({
+      base: '/legisreader/',
+      manifest: { name: 'LegisReader', short_name: 'LegisReader', theme_color: '#…' },
+    }),
+    { /* ajustes específicos do app, ex.: runtimeCaching dos dados */ },
+  ),
+)
+#+end_src
+
+O preset entrega: =VitePWA= com =registerType: 'prompt'= e
+=injectRegister: null=, os =define= acima e =resolve.dedupe: ['lit',
+'@material/web']=, como proteção extra contra cópias duplicadas.
+
+*** Dependências e instalação: npm workspaces
+
+- O app declara o submódulo como workspace:
+  ="workspaces": ["appshell"]= no =package.json= do legisreader, com a
+  dependência ="fzl-fund-appshell--lit": "*"=. O =npm install= roda *só na
+  raiz do app*, e o npm cria um único =node_modules= compartilhado.
+- O shell declara =lit=, =@material/web=, =@material-symbols/font-400=,
+  =vite= e =vite-plugin-pwa= como =peerDependencies=, e as repete em
+  =devDependencies= para continuar rodando sozinho (=npm run dev= dentro
+  do próprio repositório).
+- O =package.json= do shell ganha um campo =exports=: =.= (API),
+  =./vite= (preset), =./styles/theme.css= e =./webcomponents/*= (para uso
+  avulso de componentes).
+
+*** Assets
+
+- A fonte Material Symbols passa a ser importada por caminho relativo
+  (dentro de =src/=, ou direto do pacote =@material-symbols/font-400=). O
+  Vite inclui a fonte no bundle e aplica o =base= correto.
+- =generate-icons.mjs= passa a receber =--svg= e =--out= (padrão: o
+  diretório onde o comando é executado) e é exposto como =bin=
+  (=npx appshell-generate-icons=).
+- =index.html= e =public/= são sempre do app. O shell mantém os seus
+  apenas para o modo de demonstração.
+
+*** Organização interna resultante
+
+#+begin_example
+src/
+  index.js               # API pública: createAppShell, pattern, navigate, href, services
+  router.js              # genérico: match, pattern, navigate (sem rotas de domínio)
+  storage-keys.js        # prefixo via __APP_STORAGE_PREFIX__
+  webcomponents/         # só componentes genéricos do shell
+  services/              # auth, notificações, rest-config
+  styles/theme.css
+vite/
+  preset.js              # appshellConfig()
+demo/                    # o "app" do próprio repositório, usando a API pública
+  main.js                # createAppShell({...}) com home + config
+  home-view.js
+index.html               # aponta para demo/main.js
+#+end_example
+
+Isso resolve também a pendência "=src/webcomponents/= mistura componentes
+do shell e views de domínio": =home-view.js= vai para =demo/=, e
+=config-rest-services-view.js= fica no shell como seção estrutural
+opcional (=shellSections.config=).
+
+*** Compatibilidade
+
+Ainda não há outro consumidor além do =legisreader=, então *mudanças
+incompatíveis são aceitas agora* e não será mantida a API anterior. Depois
+do A1, mudanças na API pública passam a exigir nota no commit e ajuste
+coordenado nos apps que usam o shell.
+
 * O que fica de fora do appshell (específico do domínio bíblico)
 
 Para deixar claro o que é modelo e o que é domínio, isto *não* faz parte
@@ -196,6 +373,10 @@ do appshell genérico:
   como schema de produção do appshell.
 
 * Convenções para projetos derivados
+
+/Depois do A1, estes itens passam a ser feitos no próprio app (=base= e
+=manifest= em =appshellConfig()=, ícones com =npx appshell-generate-icons=),
+sem editar o shell./
 
 - Trocar =REPO_NAME= em =vite.config.js= (usado no =base= do Vite e,
   possivelmente, no nome do repo do GitHub Pages).
@@ -258,6 +439,70 @@ próprio =.git=) ficou de fora via =.gitignore=.
   então esse fluxo só se observa via =npm run build && npm run
   preview=.
 
+** TODO [#A] A1 — Uso como submódulo (pontos de extensão)
+Detalhes em [[*Uso como submódulo git (pontos de extensão)][Uso como submódulo git]]. É pré-requisito do
+=legisreader= e passa na frente de M3–M6. Os passos são pensados para
+commits pequenos, cada um deixando o app de demonstração funcionando:
+
+*** DONE A1.1 — Testes e router genérico
+CLOSED: [2026-09-15 ter]
+- Vitest configurado (antecipa a sugestão "testes desde o início").
+- =router.js= com =pattern()=, =match= por rota, =navigate()=/=href()= e
+  view "não encontrada"; testes de casamento de rotas (parâmetros, =*resto=,
+  query, prioridade app > shell, callback de auth do Supabase no hash).
+- Resultado:
+  - =npm test= (Vitest 5) roda =src/router.test.js=, com 20 testes.
+  - =router.js= exporta =pattern=, =parseHash=, =resolveRoute=, =href=,
+    =navigate=, =shellRoutes=, =NOT_FOUND= e =isAuthCallbackHash=;
+    =createRouter(onChange, { routes })= já aceita rotas do app.
+  - Os atalhos =navigateToLogin()= etc. foram mantidos, agora sobre
+    =navigate()=.
+  - A rota resolvida passa a ser ={ name, params, query, segments }=.
+  - Nova =<not-found-view>=, ligada ao =switch= atual do =<app-shell>=
+    (que sai no A1.2).
+  - Build de produção OK; verificado no navegador: =#/nao/existe= →
+    "Página não encontrada" → "Ir para o início" → =#/=; Entrar →
+    =#/conta/entrar=; sem erros no console.
+
+*** TODO A1.2 — =createAppShell= e rotas/views configuráveis
+- =src/index.js= com =createAppShell(config)= + validação da config.
+- =<app-shell>= renderiza as rotas registradas; o =switch= fixo sai.
+- =demo/main.js= passa a usar a API pública (home + config).
+
+*** TODO A1.3 — Drawer, header, footer e título
+- Seções do drawer configuráveis (=items= ou =render=, =visible(user)=,
+  =shellSections=).
+- =headerActions= / =footerItems= repassados aos slots existentes.
+- =title= usado no header; =home-view= movido para =demo/=.
+
+*** TODO A1.4 — Storage com prefixo
+- =storage-keys.js= + =__APP_STORAGE_PREFIX__=; =auth-service= e
+  =notification-service= passam a usá-lo.
+- Teste: dois prefixos diferentes na mesma origem não compartilham sessão.
+
+*** TODO A1.5 — Preset do Vite, dependências e assets
+- =vite/preset.js= (=appshellConfig=), =exports= e =peerDependencies= no
+  =package.json=, alinhamento de versões (Vite 7 → 8, como no
+  biblereaderapp).
+- Fonte importada por caminho relativo; =generate-icons= com =--svg=/=--out= e =bin=.
+- O =vite.config.js= do shell passa a usar o próprio preset (demo).
+
+*** TODO A1.6 — Validação com consumidor real
+- No =legisreader=: workspace npm + preset + =createAppShell= com uma rota
+  de teste, uma seção de drawer e uma ação no header, *sem editar nada em
+  =appshell/=*.
+- Critérios de aceite:
+  - o app de demonstração do shell funciona como antes (=dev=, =build= e
+    =preview= com service worker);
+  - o =legisreader= mostra rota, seção e ação próprias;
+  - existe uma única cópia de =lit= no bundle (sem erro "already been
+    defined");
+  - a fonte de ícones carrega com =base: '/legisreader/'=;
+  - as chaves do =localStorage= usam o prefixo =legisreader:=.
+- README: "Usando o appshell como submódulo" (=git submodule add=,
+  workspaces, preset, =git submodule update --remote= para atualizar,
+  =submodules: recursive= no CI). Isso adianta parte do M6.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.
@@ -300,10 +545,15 @@ próprio =.git=) ficou de fora via =.gitignore=.
   interface pequena (signIn/signOut/subscribe/currentUser) em vez de já
   nomear tudo com "supabase" — troca de fornecedor não deveria implicar
   reescrever o app-shell.
-- *Modelo de distribuição do template*: copiar a pasta manualmente,
-  usar um [[https://docs.github.com/pt/repositories/creating-and-managing-repositories/creating-a-template-repository][repositório-modelo do GitHub]], ou uma ferramenta tipo
-  [[https://github.com/Rich-Harris/degit][degit]]/=npm create=? Isso decide se este repo deve ficar sem histórico
-  de commits de domínio nenhum, para servir de template literal.
+- +*Modelo de distribuição do template*+ — *resolvido em [2026-09-15 ter]*:
+  submódulo git + npm workspaces, com configuração declarativa (ver
+  [[*Uso como submódulo git (pontos de extensão)][Uso como submódulo git]] e o marco A1). Copiar o template ou usar
+  degit fica descartado, porque perderia a evolução independente do shell.
+- *Submódulo exige disciplina*: o app fixa um commit do shell. Atualizar é
+  um ato deliberado (=git submodule update --remote= + teste), e alterações
+  feitas "de dentro" do app (=legisreader/appshell/=) precisam de commit e
+  push no repositório do shell /antes/ do commit no app. Senão, o app
+  aponta para um commit que não existe no GitHub e o CI quebra.
 - *Licença*: decidir se este appshell (e os projetos derivados sem
   Supabase) precisam mesmo de AGPL, ou se — sendo software interno da
   FzlSoft, sem redistribuição pública — faz mais sentido uma licença

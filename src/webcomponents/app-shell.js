@@ -6,8 +6,10 @@ import './nav-accordion.js'
 import './app-footer.js'
 import './app-header.js'
 import './auth-view.js'
+import './not-found-view.js'
 import { authService } from '../services/auth-service.js'
 import {
+  NOT_FOUND,
   createRouter,
   navigateToAccount,
   navigateToConfigRestServices,
@@ -232,6 +234,8 @@ export class AppShell extends LitElement {
         return html`<auth-view></auth-view>`
       case 'config-backend-servicos-rest':
         return html`<config-rest-services-view></config-rest-services-view>`
+      case NOT_FOUND:
+        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
       default:
         return html`<home-view></home-view>`
     }
