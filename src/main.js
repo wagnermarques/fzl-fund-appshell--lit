@@ -1,5 +1,9 @@
+import { html } from 'lit'
 import './styles/theme.css'
-import './webcomponents/md-imports.js'
-import './webcomponents/app-shell.js'
+import './webcomponents/home-view.js'
+import { createAppShell } from './index.js'
 
-document.querySelector('#app').innerHTML = '<app-shell></app-shell>'
+createAppShell({
+  mount: '#app',
+  home: () => html`<home-view></home-view>`,
+})

@@ -464,10 +464,26 @@ CLOSED: [2026-09-15 ter]
     "Página não encontrada" → "Ir para o início" → =#/=; Entrar →
     =#/conta/entrar=; sem erros no console.
 
-*** TODO A1.2 — =createAppShell= e rotas/views configuráveis
-- =src/index.js= com =createAppShell(config)= + validação da config.
-- =<app-shell>= renderiza as rotas registradas; o =switch= fixo sai.
-- =demo/main.js= passa a usar a API pública (home + config).
+*** DONE A1.2 — =createAppShell= e rotas/views configuráveis
+CLOSED: [2026-09-15 ter]
+- =src/index.js= com =createAppShell(config)= + validação da config
+  (=src/create-app-shell.js=, separado para ser testável em Node puro, sem
+  os imports com efeito colateral que registram os web components).
+- =<app-shell>= ganha as propriedades =routes= e =home=; =_renderRoute()=
+  procura primeiro nas rotas do app (por =name=) antes do =switch= das
+  rotas estruturais do shell (que continua só para =home/conta/*/config/*=
+  — sai por completo só quando essas também virarem configuráveis, no
+  M3+). =home-view.js= não é mais importado por =app-shell.js=.
+- =src/main.js= (o app de demonstração deste próprio repo) passa a chamar
+  =createAppShell({ mount: '#app', home: () => html\`<home-view></home-view>\` })=.
+- Resultado:
+  - =npm test= — 30 testes (=router.test.js= + novo =create-app-shell.test.js=
+    cobrindo validação: mount/home ausentes, rota sem =name=/=match=/=render=,
+    nomes duplicados).
+  - Build de produção OK; verificado no navegador (=npm run build && npm
+    run preview=): home renderiza via =config.home()=, =#/nao/existe= →
+    "Página não encontrada", =Entrar= → =#/conta/entrar=, sem erros no
+    console.
 
 *** TODO A1.3 — Drawer, header, footer e título
 - Seções do drawer configuráveis (=items= ou =render=, =visible(user)=,

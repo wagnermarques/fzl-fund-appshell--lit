@@ -1,6 +1,5 @@
 import { LitElement, html, css } from 'lit'
 import { registerSW } from 'virtual:pwa-register'
-import './home-view.js'
 import './config-rest-services-view.js'
 import './nav-accordion.js'
 import './app-footer.js'
@@ -19,6 +18,8 @@ import {
 
 export class AppShell extends LitElement {
   static properties = {
+    routes: { attribute: false },
+    home: { attribute: false },
     _route: { state: true },
     _drawerOpen: { state: true },
     _updateAvailable: { state: true },
@@ -87,6 +88,7 @@ export class AppShell extends LitElement {
 
   constructor() {
     super()
+    this.routes = []
     this._route = { name: 'home' }
     this._drawerOpen = false
     this._updateAvailable = false
@@ -105,10 +107,13 @@ export class AppShell extends LitElement {
 
   connectedCallback() {
     super.connectedCallback()
-    this._unsubscribe = createRouter((route) => {
-      this._route = route
-      this._drawerOpen = false
-    })
+    this._unsubscribe = createRouter(
+      (route) => {
+        this._route = route
+        this._drawerOpen = false
+      },
+      { routes: this.routes },
+    )
     this._unsubscribeAuth = authService.subscribe((user) => (this._user = user))
 
     // Android PWAs são normalmente retomadas da memória em vez de
@@ -225,7 +230,14 @@ export class AppShell extends LitElement {
   }
 
   _renderRoute() {
+    const appRoute = this.routes.find((route) => route.name === this._route.name)
+    if (appRoute) {
+      return appRoute.render({ params: this._route.params, query: this._route.query })
+    }
+
     switch (this._route.name) {
+      case 'home':
+        return this.home()
       case 'conta-entrar':
         return html`<auth-view mode="signin"></auth-view>`
       case 'conta-cadastro':
@@ -235,9 +247,8 @@ export class AppShell extends LitElement {
       case 'config-backend-servicos-rest':
         return html`<config-rest-services-view></config-rest-services-view>`
       case NOT_FOUND:
-        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
       default:
-        return html`<home-view></home-view>`
+        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
     }
   }
 }
