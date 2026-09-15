@@ -520,10 +520,36 @@ CLOSED: [2026-09-15 ter]
     andamento — confirmado por =_drawerOpen=false= e por uma nova
     captura logo depois). Sem erros no console.
 
-*** TODO A1.4 — Storage com prefixo
-- =storage-keys.js= + =__APP_STORAGE_PREFIX__=; =auth-service= e
-  =notification-service= passam a usá-lo.
-- Teste: dois prefixos diferentes na mesma origem não compartilham sessão.
+*** DONE A1.4 — Storage com prefixo
+CLOSED: [2026-09-15 ter]
+- =src/storage-keys.js=: =storageKey(sufixo)= monta a chave a partir de
+  =__APP_STORAGE_PREFIX__= (constante de *build*, como =__APP_VERSION__=
+  — não config de =createAppShell=, porque =auth-service= lê a sessão no
+  momento do import, antes de qualquer =createAppShell()= rodar). A
+  composição prefixo+sufixo fica também numa função pura exportada
+  (=prefixKey=), para testar a garantia de isolamento sem depender do
+  valor de build.
+- =vite.config.js= ganha o =define= de =__APP_STORAGE_PREFIX__= (usa o
+  =name= do próprio =package.json= — um app consumidor via A1.5 usará o
+  seu, pelo preset do Vite).
+- =auth-service.js= e =notification-service.js= trocam as chaves fixas
+  =fzl-appshell:*= por =storageKey('auth:users')=,
+  =storageKey('auth:session')= e =storageKey(\`notifications:${userId}\`)=.
+- Resultado:
+  - =npm test= — 43 testes (3 novos: =prefixKey= junta prefixo+sufixo e
+    nunca colide entre prefixos diferentes para o mesmo sufixo;
+    =storageKey= usa a constante de build — confirma que o Vitest resolve
+    =__APP_STORAGE_PREFIX__= do mesmo jeito que já resolvia
+    =__APP_VERSION__=).
+  - Build de produção OK; verificado no navegador (=npm run build && npm
+    run preview=): criada uma conta de teste, =Object.keys(localStorage)=
+    mostra =fzl-fund-appshell--lit:auth:session=,
+    =fzl-fund-appshell--lit:auth:users= e
+    =fzl-fund-appshell--lit:notifications:<id>= — sem erros no console.
+    (O teste de ponta a ponta com *dois* prefixos diferentes lado a lado
+    fica pro A1.6, quando o =legisreader= existir como segundo consumidor
+    real: =__APP_STORAGE_PREFIX__= é uma constante de build única por
+    bundle, não dá pra variar dentro de uma mesma suíte de testes.)
 
 *** TODO A1.5 — Preset do Vite, dependências e assets
 - =vite/preset.js= (=appshellConfig=), =exports= e =peerDependencies= no

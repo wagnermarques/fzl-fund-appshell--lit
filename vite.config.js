@@ -2,13 +2,17 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const { name, version } = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
   define: {
     // Lido por src/webcomponents/app-version.js — substituição literal em
     // tempo de build, não uma env var (não precisa de VITE_ prefix).
     __APP_VERSION__: JSON.stringify(version),
+    // Lido por src/storage-keys.js. Aqui (o próprio shell rodando como
+    // demo) usa o name deste package.json; um app consumidor via A1.5
+    // define o seu próprio (o preset do Vite cuida disso).
+    __APP_STORAGE_PREFIX__: JSON.stringify(name),
   },
   plugins: [
     VitePWA({

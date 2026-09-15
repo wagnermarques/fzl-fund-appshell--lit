@@ -10,8 +10,10 @@
 // autenticação de verdade: troque o miolo destas funções por chamadas ao
 // backend (REST em VITE_REST_API_BASE_URL, Supabase…) mantendo as assinaturas.
 
-const USERS_KEY = 'fzl-appshell:auth:users'
-const SESSION_KEY = 'fzl-appshell:auth:session'
+import { storageKey } from '../storage-keys.js'
+
+const USERS_KEY = storageKey('auth:users')
+const SESSION_KEY = storageKey('auth:session')
 
 const listeners = new Set()
 

@@ -5,8 +5,9 @@
 // backend depois — a UI só usa subscribe/add/markRead/markAllRead.
 
 import { authService } from './auth-service.js'
+import { storageKey } from '../storage-keys.js'
 
-const keyFor = (userId) => `fzl-appshell:notifications:${userId}`
+const keyFor = (userId) => storageKey(`notifications:${userId}`)
 
 const listeners = new Set()
 let currentUserId = null
