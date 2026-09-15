@@ -4,13 +4,23 @@ import './home-view.js'
 import './config-rest-services-view.js'
 import './nav-accordion.js'
 import './app-footer.js'
-import { createRouter, navigateHome, navigateToConfigRestServices } from '../router.js'
+import './app-header.js'
+import './auth-view.js'
+import { authService } from '../services/auth-service.js'
+import {
+  createRouter,
+  navigateToAccount,
+  navigateToConfigRestServices,
+  navigateToLogin,
+  navigateToSignup,
+} from '../router.js'
 
 export class AppShell extends LitElement {
   static properties = {
     _route: { state: true },
     _drawerOpen: { state: true },
     _updateAvailable: { state: true },
+    _user: { state: true },
   }
 
   static styles = css`
@@ -18,23 +28,6 @@ export class AppShell extends LitElement {
       display: flex;
       flex-direction: column;
       height: 100%;
-    }
-    .top-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 0 0 auto;
-      height: 56px;
-      padding: 0 8px;
-      background: var(--md-sys-color-surface);
-      color: var(--md-sys-color-on-surface);
-      border-bottom: 1px solid var(--md-sys-color-outline);
-    }
-    .top-bar h1 {
-      font-size: 1.1rem;
-      margin: 0;
-      flex: 1;
-      cursor: pointer;
     }
     main {
       flex: 1 1 auto;
@@ -95,6 +88,7 @@ export class AppShell extends LitElement {
     this._route = { name: 'home' }
     this._drawerOpen = false
     this._updateAvailable = false
+    this._user = null
     this._swRegistration = null
     this._updateSW = registerSW({
       onNeedRefresh: () => {
@@ -113,6 +107,7 @@ export class AppShell extends LitElement {
       this._route = route
       this._drawerOpen = false
     })
+    this._unsubscribeAuth = authService.subscribe((user) => (this._user = user))
 
     // Android PWAs são normalmente retomadas da memória em vez de
     // reiniciadas, então a checagem de atualização do próprio navegador
@@ -129,6 +124,7 @@ export class AppShell extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this._unsubscribe?.()
+    this._unsubscribeAuth?.()
     document.removeEventListener('visibilitychange', this._onVisibilityChange)
   }
 
@@ -159,18 +155,16 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
-      <div class="top-bar">
-        <md-icon-button @click=${() => (this._drawerOpen = !this._drawerOpen)} aria-label="Menu">
-          <md-icon>menu</md-icon>
-        </md-icon-button>
-        <h1 @click=${navigateHome}>Fund Appshell</h1>
-      </div>
+      <app-header @menu-toggle=${() => (this._drawerOpen = !this._drawerOpen)}></app-header>
 
       <md-navigation-drawer-modal
         .opened=${this._drawerOpen}
         @navigation-drawer-changed=${(e) => (this._drawerOpen = e.detail.opened)}
       >
         <div class="drawer-content">
+          <nav-accordion label="Conta" expanded>
+            <md-list>${this._renderAccountItems()}</md-list>
+          </nav-accordion>
           <nav-accordion label="Config">
             <nav-accordion label="Backend" nested expanded>
               <md-list>
@@ -202,8 +196,40 @@ export class AppShell extends LitElement {
     `
   }
 
+  _renderAccountItems() {
+    if (this._user) {
+      return html`
+        <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToAccount)}>
+          <md-icon slot="start">account_circle</md-icon>
+          <div slot="headline">Minha conta</div>
+          <div slot="supporting-text">${this._user.email}</div>
+        </md-list-item>
+        <md-list-item type="button" @click=${() => this._selectDrawerItem(() => authService.signOut())}>
+          <md-icon slot="start">logout</md-icon>
+          Sair
+        </md-list-item>
+      `
+    }
+    return html`
+      <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToLogin)}>
+        <md-icon slot="start">login</md-icon>
+        Entrar
+      </md-list-item>
+      <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToSignup)}>
+        <md-icon slot="start">person_add</md-icon>
+        Criar conta
+      </md-list-item>
+    `
+  }
+
   _renderRoute() {
     switch (this._route.name) {
+      case 'conta-entrar':
+        return html`<auth-view mode="signin"></auth-view>`
+      case 'conta-cadastro':
+        return html`<auth-view mode="signup"></auth-view>`
+      case 'conta':
+        return html`<auth-view></auth-view>`
       case 'config-backend-servicos-rest':
         return html`<config-rest-services-view></config-rest-services-view>`
       default:

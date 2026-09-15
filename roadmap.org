@@ -69,7 +69,13 @@ src/
     connection-status.js  # online/offline + tipo de rede (Network Info API)
     app-clock.js           # dia da semana + data + hora, ao vivo
     app-version.js          # versão do package.json (via __APP_VERSION__)
+    app-header.js         # cabeçalho fixo — menu, título, <slot> + user-status
+    user-status.js        # "Entrar" ou avatar com menu (Minha conta, Sair)
+    user-notifications.js # sino + badge de não lidas + menu de notificações
+    auth-view.js          # login / cadastro / minha conta (#/conta/...)
   services/
+    auth-service.js      # hoje: provedor LOCAL (localStorage) de demonstração
+    notification-service.js # notificações por usuário (local, mesma ideia)
     storage-service.js  # localStorage local-first (tema, fonte, fila de sync…)
     auth-service.js      # wrapper fino sobre supabase.auth (no-op se não configurado)
     sync-service.js      # fila outbox + flush + pull, status observável
