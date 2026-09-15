@@ -485,11 +485,40 @@ CLOSED: [2026-09-15 ter]
     "Página não encontrada", =Entrar= → =#/conta/entrar=, sem erros no
     console.
 
-*** TODO A1.3 — Drawer, header, footer e título
-- Seções do drawer configuráveis (=items= ou =render=, =visible(user)=,
-  =shellSections=).
-- =headerActions= / =footerItems= repassados aos slots existentes.
-- =title= usado no header; =home-view= movido para =demo/=.
+*** DONE A1.3 — Drawer, header, footer e título
+CLOSED: [2026-09-15 ter]
+- =createAppShell({ title, drawer, headerActions, footerItems })=: =title=
+  passa a ser obrigatório (igual =home=/=mount=); =drawer.sections= aceita
+  =items= (lista simples, cada um com =label=/=icon?=/=href=/=visible(user)?=)
+  ou =render= (conteúdo livre) — exatamente um dos dois, nunca os dois nem
+  nenhum; =drawer.shellSections= (=conta=/=config=, ambas =true= por
+  padrão) liga/desliga as seções estruturais do shell.
+- =<app-shell>= ganha as propriedades =title=, =drawer=, =headerActions=,
+  =footerItems=; =headerActions()=/=footerItems()= são projetados dentro
+  dos =<slot>= que =<app-header>=/=<app-footer>= já expunham (existiam,
+  mas eram inalcançáveis de fora — ver "Ponto fixo hoje" no roadmap).
+  Itens do drawer usam =<md-list-item type="link" href=...>=, então o
+  fechamento do drawer ao navegar continua vindo de graça do mecanismo
+  já existente (qualquer mudança de rota zera =_drawerOpen=).
+- =home-view.js= sai de =src/webcomponents/= e vira =demo/home-view.js=
+  (é o "app" de demonstração deste próprio repositório, não faz parte do
+  shell); =src/main.js= importa de =../demo/home-view.js= e passa
+  =title: 'Fund Appshell'= — o restante da pasta =demo/= (mover
+  =main.js=, =vite/preset.js=, etc.) fica pro A1.5, junto do preset do
+  Vite, que é quando faz sentido reorganizar tudo de uma vez.
+- Resultado:
+  - =npm test= — 40 testes (10 novos cobrindo =title=, seções do drawer
+    — id/label/items-xor-render, =shellSections= desconhecida/parcial —
+    e =headerActions=/=footerItems=).
+  - Build de produção OK; verificado no navegador (=npm run build && npm
+    run preview=): drawer com "Conta"/"Config" (padrão), reconfigurado
+    ao vivo via console com uma seção "Normas" (item visível +
+    =visible: () => false= escondido corretamente), =shellSections.config:
+    false= some a seção, =title= muda o cabeçalho, =headerActions=/
+    =footerItems= aparecem nos slots, clique num item de rota fecha o
+    drawer (a captura em pleno gesto pegou a transição de fechamento em
+    andamento — confirmado por =_drawerOpen=false= e por uma nova
+    captura logo depois). Sem erros no console.
 
 *** TODO A1.4 — Storage com prefixo
 - =storage-keys.js= + =__APP_STORAGE_PREFIX__=; =auth-service= e

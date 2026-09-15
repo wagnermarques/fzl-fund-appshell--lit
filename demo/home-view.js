@@ -1,8 +1,10 @@
 import { LitElement, html, css } from 'lit'
-import { restConfigService } from '../services/rest-config-service.js'
+import { restConfigService } from '../src/services/rest-config-service.js'
 
-/** Página inicial: explica o propósito do appshell e resume os parâmetros
- *  de configuração atuais (lidos das variáveis de ambiente). */
+/** Página inicial do app de demonstração deste próprio repositório: explica
+ *  o propósito do appshell e resume os parâmetros de configuração atuais
+ *  (lidos das variáveis de ambiente). Não faz parte do shell — é o exemplo
+ *  de "home" que um app consumidor passa via createAppShell({ home }). */
 export class HomeView extends LitElement {
   static styles = css`
     :host {

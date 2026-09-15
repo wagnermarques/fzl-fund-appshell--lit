@@ -4,21 +4,9 @@
  * DOM) e assim ser testável em Node puro.
  */
 
-/** Valida a config de createAppShell() e devolve os campos normalizados. */
-export function validateConfig(config) {
-  if (!config || typeof config !== 'object') {
-    throw new Error('createAppShell: config é obrigatório')
-  }
+const SHELL_SECTION_NAMES = ['conta', 'config']
 
-  const { mount, routes = [], home } = config
-
-  if (!mount) {
-    throw new Error('createAppShell: "mount" é obrigatório')
-  }
-  if (typeof home !== 'function') {
-    throw new Error('createAppShell: "home" deve ser uma função')
-  }
-
+function validateRoutes(routes) {
   const seen = new Set()
   for (const route of routes) {
     if (!route.name) {
@@ -35,16 +23,80 @@ export function validateConfig(config) {
       throw new Error(`createAppShell: rota "${route.name}" precisa de "render"`)
     }
   }
-
-  return { mount, routes, home }
 }
 
-/** Cria e monta o <app-shell>, configurado com as rotas e a home do app.
- *  mount pode ser um seletor CSS ou o próprio elemento container.
- *  Pressupõe que o custom element 'app-shell' já foi registrado (index.js
- *  cuida disso antes de expor esta função). */
+function validateDrawer(drawer) {
+  const sections = drawer.sections || []
+  const seen = new Set()
+  for (const section of sections) {
+    if (!section.id) {
+      throw new Error('createAppShell: toda seção do drawer precisa de "id"')
+    }
+    if (seen.has(section.id)) {
+      throw new Error(`createAppShell: id de seção duplicado "${section.id}"`)
+    }
+    seen.add(section.id)
+    if (!section.label) {
+      throw new Error(`createAppShell: seção "${section.id}" precisa de "label"`)
+    }
+    const hasItems = section.items !== undefined
+    const hasRender = section.render !== undefined
+    if (hasItems === hasRender) {
+      throw new Error(`createAppShell: seção "${section.id}" precisa de "items" ou "render" (não os dois, nem nenhum)`)
+    }
+    if (hasRender && typeof section.render !== 'function') {
+      throw new Error(`createAppShell: "render" da seção "${section.id}" deve ser uma função`)
+    }
+    if (hasItems && !Array.isArray(section.items)) {
+      throw new Error(`createAppShell: "items" da seção "${section.id}" deve ser um array`)
+    }
+  }
+
+  const shellSections = { conta: true, config: true, ...drawer.shellSections }
+  for (const key of Object.keys(shellSections)) {
+    if (!SHELL_SECTION_NAMES.includes(key)) {
+      throw new Error(`createAppShell: shellSections não reconhece "${key}" (use "conta" ou "config")`)
+    }
+  }
+
+  return { sections, shellSections }
+}
+
+/** Valida a config de createAppShell() e devolve os campos normalizados. */
+export function validateConfig(config) {
+  if (!config || typeof config !== 'object') {
+    throw new Error('createAppShell: config é obrigatório')
+  }
+
+  const { mount, routes = [], home, title, drawer = {}, headerActions = null, footerItems = null } = config
+
+  if (!mount) {
+    throw new Error('createAppShell: "mount" é obrigatório')
+  }
+  if (typeof home !== 'function') {
+    throw new Error('createAppShell: "home" deve ser uma função')
+  }
+  if (!title) {
+    throw new Error('createAppShell: "title" é obrigatório')
+  }
+  if (headerActions !== null && typeof headerActions !== 'function') {
+    throw new Error('createAppShell: "headerActions" deve ser uma função')
+  }
+  if (footerItems !== null && typeof footerItems !== 'function') {
+    throw new Error('createAppShell: "footerItems" deve ser uma função')
+  }
+
+  validateRoutes(routes)
+
+  return { mount, routes, home, title, drawer: validateDrawer(drawer), headerActions, footerItems }
+}
+
+/** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
+ *  e o título do app. mount pode ser um seletor CSS ou o próprio elemento
+ *  container. Pressupõe que o custom element 'app-shell' já foi registrado
+ *  (index.js cuida disso antes de expor esta função). */
 export function createAppShell(config) {
-  const { mount, routes, home } = validateConfig(config)
+  const { mount, routes, home, title, drawer, headerActions, footerItems } = validateConfig(config)
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {
@@ -55,5 +107,9 @@ export function createAppShell(config) {
   const shell = container.querySelector('app-shell')
   shell.routes = routes
   shell.home = home
+  shell.title = title
+  shell.drawer = drawer
+  shell.headerActions = headerActions
+  shell.footerItems = footerItems
   return shell
 }

@@ -20,6 +20,10 @@ export class AppShell extends LitElement {
   static properties = {
     routes: { attribute: false },
     home: { attribute: false },
+    title: { attribute: false },
+    drawer: { attribute: false },
+    headerActions: { attribute: false },
+    footerItems: { attribute: false },
     _route: { state: true },
     _drawerOpen: { state: true },
     _updateAvailable: { state: true },
@@ -89,6 +93,10 @@ export class AppShell extends LitElement {
   constructor() {
     super()
     this.routes = []
+    this.title = ''
+    this.drawer = { sections: [], shellSections: { conta: true, config: true } }
+    this.headerActions = null
+    this.footerItems = null
     this._route = { name: 'home' }
     this._drawerOpen = false
     this._updateAvailable = false
@@ -162,35 +170,46 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
-      <app-header @menu-toggle=${() => (this._drawerOpen = !this._drawerOpen)}></app-header>
+      <app-header .heading=${this.title} @menu-toggle=${() => (this._drawerOpen = !this._drawerOpen)}>
+        ${this.headerActions ? this.headerActions() : ''}
+      </app-header>
 
       <md-navigation-drawer-modal
         .opened=${this._drawerOpen}
         @navigation-drawer-changed=${(e) => (this._drawerOpen = e.detail.opened)}
       >
         <div class="drawer-content">
-          <nav-accordion label="Conta" expanded>
-            <md-list>${this._renderAccountItems()}</md-list>
-          </nav-accordion>
-          <nav-accordion label="Config">
-            <nav-accordion label="Backend" nested expanded>
-              <md-list>
-                <md-list-item
-                  type="button"
-                  @click=${() => this._selectDrawerItem(navigateToConfigRestServices)}
-                >
-                  <md-icon slot="start">dns</md-icon>
-                  Serviços REST
-                </md-list-item>
-              </md-list>
-            </nav-accordion>
-          </nav-accordion>
+          ${this.drawer.sections.map((section) => this._renderDrawerSection(section))}
+          ${this.drawer.shellSections.conta
+            ? html`
+                <nav-accordion label="Conta" expanded>
+                  <md-list>${this._renderAccountItems()}</md-list>
+                </nav-accordion>
+              `
+            : ''}
+          ${this.drawer.shellSections.config
+            ? html`
+                <nav-accordion label="Config">
+                  <nav-accordion label="Backend" nested expanded>
+                    <md-list>
+                      <md-list-item
+                        type="button"
+                        @click=${() => this._selectDrawerItem(navigateToConfigRestServices)}
+                      >
+                        <md-icon slot="start">dns</md-icon>
+                        Serviços REST
+                      </md-list-item>
+                    </md-list>
+                  </nav-accordion>
+                </nav-accordion>
+              `
+            : ''}
         </div>
       </md-navigation-drawer-modal>
 
       <main ?inert=${this._drawerOpen}>${this._renderRoute()}</main>
 
-      <app-footer ?inert=${this._drawerOpen}></app-footer>
+      <app-footer ?inert=${this._drawerOpen}>${this.footerItems ? this.footerItems() : ''}</app-footer>
 
       ${this._updateAvailable
         ? html`
@@ -200,6 +219,32 @@ export class AppShell extends LitElement {
             </div>
           `
         : ''}
+    `
+  }
+
+  /** Uma seção do drawer é { id, label, expanded? } + ou items: [{ label,
+   *  icon?, href, visible(user)? }] (lista simples) ou render: () => html``
+   *  (conteúdo livre, para uma árvore de navegação própria do domínio). */
+  _renderDrawerSection(section) {
+    if (section.render) {
+      return html`
+        <nav-accordion label=${section.label} ?expanded=${!!section.expanded}>${section.render()}</nav-accordion>
+      `
+    }
+    const items = section.items.filter((item) => !item.visible || item.visible(this._user))
+    return html`
+      <nav-accordion label=${section.label} ?expanded=${!!section.expanded}>
+        <md-list>
+          ${items.map(
+            (item) => html`
+              <md-list-item type="link" href=${item.href}>
+                ${item.icon ? html`<md-icon slot="start">${item.icon}</md-icon>` : ''}
+                ${item.label}
+              </md-list-item>
+            `,
+          )}
+        </md-list>
+      </nav-accordion>
     `
   }
 
