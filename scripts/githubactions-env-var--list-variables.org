@@ -1,0 +1,115 @@
+#+TITLE: githubactions-env-var--list-variables.sh
+#+AUTHOR: FzlSoft
+#+DATE: [2026-09-18 sex]
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:2
+
+* O que faz
+
+Lista as /variables/ do GitHub Actions de um repositório — as
+=VITE_*= que o workflow de build injeta no Vite na hora de gerar o
+=dist/= (ver [[file:../.env.example][.env.example]] e o marco M5 do [[file:../roadmap.org][roadmap]]).
+
+Serve de conferência antes de um deploy: é onde se vê se o app tem,
+por exemplo, =VITE_GA4_MEASUREMENT_ID= definida e com que valor —
+sem precisar abrir as configurações do repositório no navegador.
+
+Só *lê*: nenhuma opção cria, altera ou apaga nada. Para definir o id
+do GA4, use o [[file:set-ga4-variable.sh][set-ga4-variable.sh]], ao lado deste.
+
+* Variables e secrets
+
+| Tipo       | Valor pode ser lido depois? | Para quê                                              |
+|------------+-----------------------------+-------------------------------------------------------|
+| =variable= | sim                         | Configuração não sensível: base path da API, id do GA4 |
+| =secret=   | não                         | Credenciais: token de deploy, chave de assinatura      |
+
+O valor de um secret nunca sai do GitHub — a API devolve só o nome e a
+data. Por isso =--secrets= lista apenas os nomes: é tudo o que existe
+para listar, não uma limitação do script.
+
+Regra prática: se o valor vai parar dentro do bundle (tudo que começa
+com =VITE_=, que o Vite substitui em tempo de build), ele é público por
+natureza e deve ser uma /variable/. Um secret ali daria uma falsa
+sensação de proteção — o valor apareceria no JavaScript publicado do
+mesmo jeito.
+
+* Uso
+
+#+begin_src sh
+# No repositório do app (o gh usa o remote dali)
+npm run gh:variables
+
+# Direto pelo caminho, com as opções
+./scripts/githubactions-env-var--list-variables.sh --secrets
+./scripts/githubactions-env-var--list-variables.sh --env production
+./scripts/githubactions-env-var--list-variables.sh --repo dono/repo --json
+#+end_src
+
+Num app que usa o appshell como dependência (submódulo + npm
+workspaces), o script também está exposto como /bin/:
+
+#+begin_src sh
+npx appshell-list-gh-variables
+#+end_src
+
+** Opções
+
+| Opção              | Efeito                                                        |
+|--------------------+---------------------------------------------------------------|
+| =--repo dono/repo= | Outro repositório, em vez do remote do diretório atual        |
+| =--env <ambiente>= | Variables de um /Environment/ (ex.: =production=), não do repo |
+| =--secrets=        | Lista também os nomes dos secrets                             |
+| =--json=           | Saída em JSON (=name=, =value=, =updatedAt=), para outro script |
+| =-h=, =--help=     | Mostra o cabeçalho de ajuda do próprio script                 |
+
+* Saída
+
+#+begin_example
+Repositório: wagnermarques/legisreader  (environment: production)
+
+Variables:
+VITE_GA4_MEASUREMENT_ID    G-ABC1234567              about 1 hour ago
+VITE_REST_API_BASE_URL     https://api.exemplo/api   2 days ago
+
+Secrets (só os nomes — o valor nunca sai do GitHub):
+DEPLOY_TOKEN               2026-09-01
+
+Detalhes e edição: https://github.com/wagnermarques/legisreader/settings/variables/actions
+#+end_example
+
+Sem nada definido, a seção mostra =(nenhuma)= — repositório novo não é
+erro. Com =--json=, a saída é só o JSON (sem cabeçalho nem rodapé), para
+poder entrar num =jq= ou em outro script:
+
+#+begin_src sh
+./scripts/githubactions-env-var--list-variables.sh --json \
+  | jq -r '.[] | select(.name | startswith("VITE_")) | "\(.name)=\(.value)"'
+#+end_src
+
+* Requisitos
+
+- [[https://cli.github.com][GitHub CLI]] (=gh=) instalado e autenticado (=gh auth login=). Faltando um
+  dos dois, o script para e diz qual é o comando que resolve.
+- Permissão de leitura das configurações do repositório. Sem ela, o =gh=
+  não devolve as variables e a lista sai vazia.
+
+* Por que um script, e não só =gh variable list=
+
+O comando do =gh= já existe; o script embrulha três coisas que se
+repetiriam em cada app da família:
+
+- diz *qual* repositório está sendo lido (fácil errar de diretório
+  quando o app tem o appshell como submódulo);
+- trata lista vazia como "ainda não há nada" em vez de saída muda;
+- junta variables e secrets na mesma conferência pré-deploy, com o link
+  da tela de edição no fim.
+
+* Relacionados
+
+- [[file:set-ga4-variable.sh][set-ga4-variable.sh]] — define =VITE_GA4_MEASUREMENT_ID= perguntando o
+  valor, validando o formato =G-XXXXXXXXXX= e confirmando antes de gravar.
+- [[file:../.env.example][.env.example]] — as mesmas variáveis no ambiente local (=.env.local=),
+  que é a fonte da verdade fora do CI.
+- [[file:../roadmap.org][roadmap.org]], M5 — CI/CD: o workflow de deploy que consome estas
+  variables via =vars.*=.

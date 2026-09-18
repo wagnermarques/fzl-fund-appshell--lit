@@ -11,7 +11,8 @@
   },
   "bin": {
     "appshell-generate-icons": "./scripts/generate-icons.mjs",
-    "appshell-set-ga4-variable": "./scripts/set-ga4-variable.sh"
+    "appshell-set-ga4-variable": "./scripts/set-ga4-variable.sh",
+    "appshell-list-gh-variables": "./scripts/githubactions-env-var--list-variables.sh"
   },
   "scripts": {
     "dev": "vite",
@@ -19,6 +20,7 @@
     "preview": "vite preview",
     "serve": "npm run build && npm run preview",
     "ga4:variable": "./scripts/set-ga4-variable.sh",
+    "gh:variables": "./scripts/githubactions-env-var--list-variables.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },
