@@ -4,7 +4,10 @@
  * DOM) e assim ser testável em Node puro.
  */
 
+import { GA4_ID_PATTERN } from './services/analytics-service.js'
+
 const SHELL_SECTION_NAMES = ['conta', 'config']
+const ANALYTICS_PROVIDERS = ['none', 'ga4']
 
 function validateRoutes(routes) {
   const seen = new Set()
@@ -62,13 +65,55 @@ function validateDrawer(drawer) {
   return { sections, shellSections }
 }
 
+/** Valida analytics e devolve { provider: 'none' } ou a config do GA4.
+ *
+ *  id vazio/ausente desliga o analytics em vez de dar erro: um app passa
+ *  `id: import.meta.env.VITE_GA4_MEASUREMENT_ID`, e essa variável
+ *  normalmente não existe em desenvolvimento — quebrar o `npm run dev` por
+ *  isso seria pior que rodar sem medição. Já um id *preenchido* e fora do
+ *  formato é erro: aí é engano de digitação, e um id errado só se
+ *  descobre semanas depois, quando o relatório aparece vazio. */
+function validateAnalytics(analytics) {
+  if (analytics === null || analytics === undefined) return { provider: 'none' }
+  if (typeof analytics !== 'object') {
+    throw new Error('createAppShell: "analytics" deve ser um objeto')
+  }
+
+  const { provider = 'ga4', id = '', cookiePrefix, params = {} } = analytics
+
+  if (!ANALYTICS_PROVIDERS.includes(provider)) {
+    throw new Error(`createAppShell: analytics.provider não reconhece "${provider}" (use "ga4" ou "none")`)
+  }
+  if (provider === 'none' || !id) return { provider: 'none' }
+  if (!GA4_ID_PATTERN.test(id)) {
+    throw new Error(`createAppShell: analytics.id "${id}" não é um Measurement ID do GA4 (G-XXXXXXXXXX)`)
+  }
+  if (cookiePrefix !== undefined && typeof cookiePrefix !== 'string') {
+    throw new Error('createAppShell: analytics.cookiePrefix deve ser uma string')
+  }
+  if (typeof params !== 'object' || params === null) {
+    throw new Error('createAppShell: analytics.params deve ser um objeto')
+  }
+
+  return { provider: 'ga4', id, cookiePrefix, params }
+}
+
 /** Valida a config de createAppShell() e devolve os campos normalizados. */
 export function validateConfig(config) {
   if (!config || typeof config !== 'object') {
     throw new Error('createAppShell: config é obrigatório')
   }
 
-  const { mount, routes = [], home, title, drawer = {}, headerActions = null, footerItems = null } = config
+  const {
+    mount,
+    routes = [],
+    home,
+    title,
+    drawer = {},
+    headerActions = null,
+    footerItems = null,
+    analytics = null,
+  } = config
 
   if (!mount) {
     throw new Error('createAppShell: "mount" é obrigatório')
@@ -88,7 +133,16 @@ export function validateConfig(config) {
 
   validateRoutes(routes)
 
-  return { mount, routes, home, title, drawer: validateDrawer(drawer), headerActions, footerItems }
+  return {
+    mount,
+    routes,
+    home,
+    title,
+    drawer: validateDrawer(drawer),
+    headerActions,
+    footerItems,
+    analytics: validateAnalytics(analytics),
+  }
 }
 
 /** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
@@ -102,7 +156,7 @@ export function validateConfig(config) {
  *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
  *  app jamais casaria. */
 export function createAppShell(config) {
-  const { mount, routes, home, title, drawer, headerActions, footerItems } = validateConfig(config)
+  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics } = validateConfig(config)
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {
@@ -116,6 +170,7 @@ export function createAppShell(config) {
   shell.drawer = drawer
   shell.headerActions = headerActions
   shell.footerItems = footerItems
+  shell.analytics = analytics
 
   container.replaceChildren(shell)
   return shell

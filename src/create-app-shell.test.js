@@ -14,6 +14,7 @@ describe('validateConfig', () => {
       drawer: { sections: [], shellSections: { conta: true, config: true } },
       headerActions: null,
       footerItems: null,
+      analytics: { provider: 'none' },
     })
   })
 
@@ -122,5 +123,42 @@ describe('validateConfig', () => {
       conta: true,
       config: false,
     })
+  })
+})
+
+describe('validateConfig — analytics', () => {
+  it('aceita o id do GA4 do app e assume provider "ga4"', () => {
+    const analytics = validateConfig({ ...base, analytics: { id: 'G-ABC123' } }).analytics
+    expect(analytics).toEqual({ provider: 'ga4', id: 'G-ABC123', cookiePrefix: undefined, params: {} })
+  })
+
+  it('passa cookiePrefix e params adiante', () => {
+    const analytics = { id: 'G-ABC123', cookiePrefix: 'legisreader', params: { debug_mode: true } }
+    expect(validateConfig({ ...base, analytics }).analytics).toEqual({ provider: 'ga4', ...analytics })
+  })
+
+  it('desliga quando não há id — o caso de VITE_GA4_MEASUREMENT_ID indefinida em dev', () => {
+    expect(validateConfig({ ...base, analytics: { id: undefined } }).analytics).toEqual({ provider: 'none' })
+    expect(validateConfig({ ...base, analytics: { id: '' } }).analytics).toEqual({ provider: 'none' })
+  })
+
+  it('desliga com provider "none", mesmo com id', () => {
+    const analytics = { provider: 'none', id: 'G-ABC123' }
+    expect(validateConfig({ ...base, analytics }).analytics).toEqual({ provider: 'none' })
+  })
+
+  it('recusa um id preenchido fora do formato do GA4', () => {
+    expect(() => validateConfig({ ...base, analytics: { id: 'UA-12345-1' } })).toThrow(/Measurement ID/)
+    expect(() => validateConfig({ ...base, analytics: { id: 'G ABC' } })).toThrow(/Measurement ID/)
+  })
+
+  it('recusa provider desconhecido', () => {
+    expect(() => validateConfig({ ...base, analytics: { provider: 'plausible' } })).toThrow(/provider/)
+  })
+
+  it('recusa analytics que não seja objeto, e cookiePrefix/params de tipo errado', () => {
+    expect(() => validateConfig({ ...base, analytics: 'G-ABC123' })).toThrow(/"analytics"/)
+    expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', cookiePrefix: 1 } })).toThrow(/cookiePrefix/)
+    expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', params: 'x' } })).toThrow(/params/)
   })
 })

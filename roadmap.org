@@ -76,6 +76,7 @@ src/
   services/
     auth-service.js      # hoje: provedor LOCAL (localStorage) de demonstração
     notification-service.js # notificações por usuário (local, mesma ideia)
+    analytics-service.js # GA4 (gtag) com o id do app; page_view por rota
     storage-service.js  # localStorage local-first (tema, fonte, fila de sync…)
     auth-service.js      # wrapper fino sobre supabase.auth (no-op se não configurado)
     sync-service.js      # fila outbox + flush + pull, status observável
@@ -628,6 +629,75 @@ CLOSED: [2026-09-15 ter]
 - README: "Usando o appshell como submódulo" (=git submodule add=,
   workspaces, preset, =git submodule update --remote= para atualizar,
   =submodules: recursive= no CI). Isso adianta parte do M6.
+
+** DONE [#A] A2 — Analytics (GA4) por aplicação
+CLOSED: [2026-09-17 qui]
+Objetivo: todo app que usa o appshell ganha medição de uso de fábrica,
+apontando para a *sua própria* propriedade do GA4 — o shell não tem
+id embutido nem propriedade compartilhada.
+
+- =src/services/analytics-service.js= — carrega o =gtag.js= em runtime
+  (não um =<script>= no =index.html=: o =index.html= é do app consumidor,
+  e "de fábrica" não pode significar "cole o snippet do Google em cada
+  app"). Expõe =init()=, =trackPageView()= e =track(nome, params)= para
+  eventos de domínio; sem globais implícitos (recebe =win=/=doc=), o que
+  o deixa testável em Node puro como o resto de =src/=.
+- SPA + rotas no hash (o ponto central): a config sobe com
+  =send_page_view: false= e cada =page_view= é mandado na mão a partir
+  do callback do =createRouter()= em =app-shell.js=. Sem isso o gtag
+  contaria só a carga inicial e nenhuma navegação depois — nossas rotas
+  vivem em =location.hash=, e a Medição Otimizada do GA4 observa a
+  History API, não =hashchange=. O callback do router já dispara uma vez
+  na carga e uma vez por mudança (garantido por teste em
+  =router.test.js=), então é exatamente um =page_view= por view, sem
+  duplicar a primeira.
+- =route_name= vai como parâmetro próprio do evento: é o nome da rota
+  (='livro'=), não a URL resolvida (='livro/42'=) — dá relatório
+  agregado por tela, enquanto o =page_location= sozinho renderia uma
+  linha por id.
+- Privacidade: o =page_location= é *remontado* a partir da rota já
+  resolvida (=href(segments, query)=), nunca copiado de
+  =location.href=, e as chaves sensíveis da query (=access_token=,
+  =refresh_token=, =token=, =code=, =password=/=senha=) são descartadas
+  — links de confirmação de e-mail e de reset de senha chegam com o
+  token na URL, e ele iria inteiro pro Google. (O hash de callback dos
+  provedores já era neutralizado antes, no =resolveRoute()= — ver
+  =isAuthCallbackHash=.)
+- Config por aplicação: =createAppShell({ analytics: { id,
+  cookiePrefix, params, provider } })=, validada em =validateConfig()=
+  junto com o resto. =id= vazio/ausente *desliga* em vez de dar erro (um
+  app passa =import.meta.env.VITE_GA4_MEASUREMENT_ID=, que não existe em
+  dev); um id preenchido fora do formato =G-XXXXXXXXXX= é erro, porque
+  aí é engano de digitação — e id errado só se descobre semanas depois,
+  com o relatório vazio.
+- =cookiePrefix=: apps diferentes na mesma origem (ex.:
+  =usuario.github.io/<repo>=) compartilhariam o cookie =_ga= e, com ele,
+  sessão e usuário no GA4 — o mesmo problema que =__APP_STORAGE_PREFIX__=
+  resolve no =localStorage=, e a mesma solução. A demo passa
+  =cookiePrefix: __APP_STORAGE_PREFIX__=.
+- =src/index.js= passa a exportar =track= e =analyticsService= (API
+  pública: um app manda evento de domínio sem importar de
+  =src/services/=). =.env.example= ganha =VITE_GA4_MEASUREMENT_ID=.
+- Resultado:
+  - =npm test= — 61 testes (18 novos: 11 do serviço, 7 da validação da
+    config). Cobrem =send_page_view: false=, =cookie_prefix=, um
+    =page_view= por rota, a remoção dos tokens da query e o serviço em
+    silêncio quando desligado.
+  - Build de produção OK, sem mudança de tamanho relevante: com
+    =VITE_GA4_MEASUREMENT_ID= vazia, nada do gtag é carregado.
+- Pendente (fica pro A2.1, quando houver um id real e um consumidor):
+  - verificar no navegador com um =G-= de teste — Tempo real do GA4
+    mostrando um =page_view= por navegação de hash e nenhuma duplicata
+    na carga inicial (o =DebugView= com =params: { debug_mode: true }=
+    ajuda);
+  - decidir consentimento/LGPD: o GA4 usa cookie, então o caminho é
+    Consent Mode v2 (ou um banner) — hoje o appshell não tem nenhum dos
+    dois, e a decisão depende do público de cada app;
+  - eventos offline são perdidos (o PWA funciona sem rede, o beacon
+    não); avaliar a receita de fila offline do Workbox se a subcontagem
+    incomodar;
+  - bloqueadores de anúncio derrubam o =gtag.js= para uma fatia real
+    dos usuários — a medição é piso, não censo.
 
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com

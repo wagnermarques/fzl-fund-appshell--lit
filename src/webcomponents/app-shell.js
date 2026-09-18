@@ -6,6 +6,7 @@ import './app-footer.js'
 import './app-header.js'
 import './auth-view.js'
 import './not-found-view.js'
+import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
 import {
   NOT_FOUND,
@@ -24,6 +25,7 @@ export class AppShell extends LitElement {
     drawer: { attribute: false },
     headerActions: { attribute: false },
     footerItems: { attribute: false },
+    analytics: { attribute: false },
     _route: { state: true },
     _drawerOpen: { state: true },
     _updateAvailable: { state: true },
@@ -97,6 +99,7 @@ export class AppShell extends LitElement {
     this.drawer = { sections: [], shellSections: { conta: true, config: true } }
     this.headerActions = null
     this.footerItems = null
+    this.analytics = { provider: 'none' }
     this._route = { name: 'home' }
     this._drawerOpen = false
     this._updateAvailable = false
@@ -115,10 +118,19 @@ export class AppShell extends LitElement {
 
   connectedCallback() {
     super.connectedCallback()
+
+    // Antes do createRouter(): o callback dele dispara já na carga inicial,
+    // e é esse primeiro disparo que vira o page_view da tela de entrada.
+    analyticsService.init(this.analytics)
+
     this._unsubscribe = createRouter(
       (route) => {
         this._route = route
         this._drawerOpen = false
+        // Um page_view por rota resolvida. O gtag sozinho só contaria a
+        // carga da página (ver analytics-service.js): como as rotas vivem
+        // no hash, toda navegação depois da primeira seria invisível.
+        analyticsService.trackPageView(route, this.title)
       },
       { routes: this.routes },
     )
