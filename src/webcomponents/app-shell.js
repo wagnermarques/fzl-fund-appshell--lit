@@ -313,10 +313,12 @@ export class AppShell extends LitElement {
         <md-icon slot="start">login</md-icon>
         Entrar
       </md-list-item>
-      <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToSignup)}>
-        <md-icon slot="start">person_add</md-icon>
-        Criar conta
-      </md-list-item>
+      ${authService.supports('signUp')
+        ? html`<md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToSignup)}>
+            <md-icon slot="start">person_add</md-icon>
+            Criar conta
+          </md-list-item>`
+        : ''}
     `
   }
 
@@ -333,6 +335,12 @@ export class AppShell extends LitElement {
         return html`<auth-view mode="signin"></auth-view>`
       case 'conta-cadastro':
         return html`<auth-view mode="signup"></auth-view>`
+      case 'conta-esqueci-senha':
+        return html`<auth-view mode="forgot"></auth-view>`
+      case 'conta-redefinir-senha':
+        return html`<auth-view mode="reset" .token=${this._route.query.token ?? null}></auth-view>`
+      case 'conta-alterar-senha':
+        return html`<auth-view mode="change"></auth-view>`
       case 'conta':
         return html`<auth-view></auth-view>`
       case 'config-backend-servicos-rest':

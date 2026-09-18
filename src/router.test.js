@@ -72,6 +72,12 @@ describe('resolveRoute', () => {
     expect(resolveRoute('#/conta').name).toBe('conta')
     expect(resolveRoute('#/conta/entrar').name).toBe('conta-entrar')
     expect(resolveRoute('#/conta/cadastro').name).toBe('conta-cadastro')
+    expect(resolveRoute('#/conta/esqueci-senha').name).toBe('conta-esqueci-senha')
+    expect(resolveRoute('#/conta/redefinir-senha?token=abc')).toMatchObject({
+      name: 'conta-redefinir-senha',
+      query: { token: 'abc' },
+    })
+    expect(resolveRoute('#/conta/alterar-senha').name).toBe('conta-alterar-senha')
     expect(resolveRoute('#/config/backend/servicos-rest').name).toBe('config-backend-servicos-rest')
     expect(resolveRoute('#/config/privacidade').name).toBe('config-privacidade')
   })
@@ -117,6 +123,16 @@ describe('resolveRoute', () => {
     expect(isAuthCallbackHash('#error_description=expired')).toBe(true)
     expect(isAuthCallbackHash('#/busca?q=access')).toBe(false)
     expect(resolveRoute('#access_token=abc&type=signup')).toEqual({ name: 'conta', params: {}, query: {}, segments: [] })
+  })
+
+  it('link de recuperação de senha do provedor abre a tela de nova senha, sem expor o token', () => {
+    expect(resolveRoute('#access_token=abc&refresh_token=def&type=recovery')).toEqual({
+      name: 'conta-redefinir-senha',
+      params: {},
+      query: {},
+      segments: [],
+    })
+    expect(resolveRoute('#access_token=abc&type=recoveryx').name).toBe('conta')
   })
 })
 

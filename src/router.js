@@ -20,6 +20,9 @@
  *   #/conta/entrar                      -> login
  *   #/conta/cadastro                    -> signup
  *   #/conta                             -> account (logged-in user)
+ *   #/conta/esqueci-senha               -> pedir o link de redefinição
+ *   #/conta/redefinir-senha?token=...   -> nova senha a partir do link
+ *   #/conta/alterar-senha               -> trocar a senha (logado)
  *   #/config/backend/servicos-rest      -> REST services base path config
  *   #/config/privacidade                -> consentimento do analytics
  */
@@ -54,6 +57,9 @@ export const shellRoutes = [
   { name: 'home', match: pattern('') },
   { name: 'conta-entrar', match: pattern('conta/entrar') },
   { name: 'conta-cadastro', match: pattern('conta/cadastro') },
+  { name: 'conta-esqueci-senha', match: pattern('conta/esqueci-senha') },
+  { name: 'conta-redefinir-senha', match: pattern('conta/redefinir-senha') },
+  { name: 'conta-alterar-senha', match: pattern('conta/alterar-senha') },
   { name: 'conta', match: pattern('conta') },
   { name: 'config-backend-servicos-rest', match: pattern('config/backend/servicos-rest') },
   { name: 'config-privacidade', match: pattern('config/privacidade') },
@@ -63,9 +69,14 @@ export const shellRoutes = [
 // provedores como o Supabase entregam a sessão no hash
 // (#access_token=...&type=signup). Como nossas rotas também vivem no hash,
 // esse fragmento seria lido como uma rota inexistente — trata como a página
-// da conta.
+// da conta (ou, no link de recuperação de senha, type=recovery, como a tela
+// de nova senha: a sessão de recuperação já veio no hash).
 export function isAuthCallbackHash(hash) {
   return /(^|[&#/])access_token=|(^|[&#/])error_description=/.test(hash)
+}
+
+function isPasswordRecoveryHash(hash) {
+  return /(^|[&#/?])type=recovery(&|$)/.test(hash)
 }
 
 function decodeSegment(segment) {
@@ -94,7 +105,8 @@ export function resolveRoute(hash, appRoutes = []) {
   const { segments, query } = parseHash(hash)
 
   if (isAuthCallbackHash(hash)) {
-    return { name: 'conta', params: {}, query: {}, segments: [] }
+    const name = isPasswordRecoveryHash(hash) ? 'conta-redefinir-senha' : 'conta'
+    return { name, params: {}, query: {}, segments: [] }
   }
 
   for (const route of [...appRoutes, ...shellRoutes]) {
@@ -141,6 +153,14 @@ export function navigateToLogin() {
 
 export function navigateToSignup() {
   navigate('conta/cadastro')
+}
+
+export function navigateToForgotPassword() {
+  navigate('conta/esqueci-senha')
+}
+
+export function navigateToChangePassword() {
+  navigate('conta/alterar-senha')
 }
 
 export function navigateToAccount() {

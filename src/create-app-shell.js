@@ -5,6 +5,7 @@
  */
 
 import { GA4_ID_PATTERN } from './services/analytics-service.js'
+import { authService, validateAuthProvider } from './services/auth-service.js'
 
 const SHELL_SECTION_NAMES = ['conta', 'config']
 const ANALYTICS_PROVIDERS = ['none', 'ga4']
@@ -123,6 +124,7 @@ export function validateConfig(config) {
     headerActions = null,
     footerItems = null,
     analytics = null,
+    auth = null,
   } = config
 
   if (!mount) {
@@ -142,6 +144,8 @@ export function validateConfig(config) {
   }
 
   validateRoutes(routes)
+  // Sem auth, fica o provedor local de demonstração (auth-service.js).
+  if (auth !== null) validateAuthProvider(auth)
 
   return {
     mount,
@@ -152,12 +156,14 @@ export function validateConfig(config) {
     headerActions,
     footerItems,
     analytics: validateAnalytics(analytics),
+    auth,
   }
 }
 
 /** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
- *  e o título do app. mount pode ser um seletor CSS ou o próprio elemento
- *  container. Pressupõe que o custom element 'app-shell' já foi registrado
+ *  e o título do app, e instala o provedor de autenticação do app (auth —
+ *  contrato no topo de services/auth-service.js). mount pode ser um
+ *  seletor CSS ou o próprio elemento container. Pressupõe que o custom element 'app-shell' já foi registrado
  *  (index.js cuida disso antes de expor esta função).
  *
  *  As propriedades são setadas *antes* do elemento entrar no DOM — nunca
@@ -166,12 +172,16 @@ export function validateConfig(config) {
  *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
  *  app jamais casaria. */
 export function createAppShell(config) {
-  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics } = validateConfig(config)
+  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth } = validateConfig(config)
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {
     throw new Error(`createAppShell: elemento não encontrado para mount "${mount}"`)
   }
+
+  // Antes de criar o <app-shell>: ele e o header já leem o usuário atual
+  // ao conectar, e esse usuário tem de vir do provedor do app.
+  if (auth) authService.use(auth)
 
   const shell = document.createElement('app-shell')
   shell.routes = routes

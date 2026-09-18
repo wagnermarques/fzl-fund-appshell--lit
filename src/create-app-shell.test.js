@@ -15,6 +15,7 @@ describe('validateConfig', () => {
       headerActions: null,
       footerItems: null,
       analytics: { provider: 'none' },
+      auth: null,
     })
   })
 
@@ -177,5 +178,39 @@ describe('validateConfig — analytics', () => {
       /requireConsent/,
     )
     expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', privacyUrl: 1 } })).toThrow(/privacyUrl/)
+  })
+})
+
+describe('validateConfig — auth', () => {
+  const minimal = { signIn: async () => ({}), signOut: async () => {} }
+
+  it('aceita um provedor com só signIn e signOut', () => {
+    expect(validateConfig({ ...base, auth: minimal }).auth).toBe(minimal)
+  })
+
+  it('aceita as operações opcionais de senha', () => {
+    const auth = {
+      ...minimal,
+      signUp: noop,
+      requestPasswordReset: noop,
+      resetPassword: noop,
+      changePassword: noop,
+      init: noop,
+      passwordMinLength: 8,
+    }
+    expect(validateConfig({ ...base, auth }).auth).toBe(auth)
+  })
+
+  it('recusa provedor que não é objeto ou sem signIn/signOut', () => {
+    expect(() => validateConfig({ ...base, auth: 'x' })).toThrow(/"auth" deve ser um objeto/)
+    expect(() => validateConfig({ ...base, auth: { signOut: noop } })).toThrow(/auth.signIn é obrigatório/)
+    expect(() => validateConfig({ ...base, auth: { signIn: noop } })).toThrow(/auth.signOut é obrigatório/)
+  })
+
+  it('recusa operação opcional que não é função e passwordMinLength inválido', () => {
+    expect(() => validateConfig({ ...base, auth: { ...minimal, resetPassword: true } })).toThrow(
+      /auth.resetPassword deve ser uma função/,
+    )
+    expect(() => validateConfig({ ...base, auth: { ...minimal, passwordMinLength: 0 } })).toThrow(/passwordMinLength/)
   })
 })

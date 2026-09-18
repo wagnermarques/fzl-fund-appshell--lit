@@ -735,6 +735,34 @@ CLOSED: [2026-09-17 qui]
   =_ga=) — só por teste unitário. Fica junto da verificação com um id
   real, ainda pendente.
 
+** DONE [#A] A3 — Senha: esqueci / redefinir / alterar, com provedor do app
+CLOSED: [2026-09-18 sex]
+- O shell não sabe *como* se autentica: =auth-service.js= virou uma
+  fachada sobre um *provedor*, e o app passa o seu em
+  =createAppShell({ auth })= — sem editar o submódulo. Contrato no topo
+  do arquivo: =signIn=/=signOut= obrigatórios; =signUp=,
+  =requestPasswordReset=, =resetPassword=, =changePassword=, =init({
+  setUser })= e =passwordMinLength= opcionais. =validateConfig()= recusa
+  provedor fora do contrato.
+- Operação que o provedor não implementa some da UI (=authService.supports()=):
+  sem =signUp= não há "Criar conta"; sem =requestPasswordReset= não há
+  "Esqueci minha senha".
+- Rotas: =#/conta/esqueci-senha=, =#/conta/redefinir-senha?token=...= e
+  =#/conta/alterar-senha= (botão "Alterar senha" em Minha conta). O link
+  de recuperação no formato do Supabase (=#access_token=...&type=recovery=)
+  cai direto na tela de nova senha, sem expor o token na query.
+- =requestPasswordReset= recebe =redirectTo= (URL absoluta da rota de
+  redefinição) e deve resolver igual exista ou não a conta.
+  =resetPassword= devolve um usuário para já logar, ou =null= para
+  mandar ao login.
+- =localProvider= (padrão, demonstração) implementa tudo: token com
+  validade de 30 min, uso único, um pedido ativo por conta, só o hash
+  guardado; sem e-mail, mostra na tela o link que seria enviado (o que
+  revela se a conta existe — aceitável só na demo).
+- Resultado: 92 testes (16 novos); build OK. Conferido no navegador:
+  cadastro → alterar senha (erro com a atual errada, depois ok) → sair →
+  esqueci → link → nova senha → login com ela.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.
@@ -743,7 +771,8 @@ CLOSED: [2026-09-17 qui]
 - =backend-client.js= condicional a env vars (seguir o padrão
   =supabase-client.js=, mas nomeado de forma neutra caso o backend possa
   mudar — ver decisão pendente sobre Supabase vs. adapter).
-- =auth-service.js= (signUp/signIn/signOut/subscribe).
+- Um provedor de exemplo sobre o backend real, no contrato de
+  =createAppShell({ auth })= (A3) — o =auth-service.js= já não muda.
 - =sync-service.js= com outbox, debounce, flush idempotente e status
   observável — como *template* genérico, com um único op de exemplo
   documentando o padrão para o próximo projeto copiar.

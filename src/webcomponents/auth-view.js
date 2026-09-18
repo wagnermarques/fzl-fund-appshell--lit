@@ -1,14 +1,29 @@
 import { LitElement, html, css } from 'lit'
 import { authService } from '../services/auth-service.js'
-import { navigateHome, navigateToLogin, navigateToSignup } from '../router.js'
+import {
+  navigateHome,
+  navigateToAccount,
+  navigateToChangePassword,
+  navigateToForgotPassword,
+  navigateToLogin,
+  navigateToSignup,
+} from '../router.js'
 
-/** Conta do usuário: formulário de login (mode="signin") ou de cadastro
- *  (mode="signup"); com alguém logado, mostra os dados da conta e o botão
- *  Sair, independentemente do mode. */
+/** Conta do usuário. mode:
+ *  - "signin" / "signup": login e cadastro;
+ *  - "forgot": pede o link de redefinição de senha;
+ *  - "reset": nova senha a partir do link (token vem da query ?token=);
+ *  - "change": troca a senha de quem está logado.
+ *  Com alguém logado, signin/signup/forgot mostram os dados da conta; sem
+ *  ninguém, change mostra o login. reset vale nos dois casos (provedores
+ *  como o Supabase já abrem o link com a sessão de recuperação ativa).
+ *  O que o provedor do app não implementa não aparece. */
 export class AuthView extends LitElement {
   static properties = {
     mode: { reflect: true },
+    token: {},
     _user: { state: true },
+    _done: { state: true },
     _error: { state: true },
     _busy: { state: true },
   }
@@ -75,12 +90,27 @@ export class AuthView extends LitElement {
       margin: 0;
       word-break: break-all;
     }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .forgot {
+      align-self: flex-end;
+      margin-top: -4px;
+    }
+    .done a {
+      color: var(--md-sys-color-primary);
+      word-break: break-all;
+    }
   `
 
   constructor() {
     super()
     this.mode = 'signin'
+    this.token = null
     this._user = null
+    this._done = null
     this._error = null
     this._busy = false
   }
@@ -96,8 +126,18 @@ export class AuthView extends LitElement {
   }
 
   willUpdate(changed) {
-    // Trocar entre login e cadastro não deve carregar o erro da outra tela.
-    if (changed.has('mode')) this._error = null
+    // Trocar de tela não deve carregar o erro nem o sucesso da anterior.
+    if (changed.has('mode')) {
+      this._error = null
+      this._done = null
+    }
+  }
+
+  /** Qual formulário mostrar, dado o mode e se há alguém logado. */
+  _screen() {
+    if (this.mode === 'reset') return 'reset'
+    if (this._user) return this.mode === 'change' ? 'change' : 'account'
+    return this.mode === 'change' ? 'signin' : this.mode
   }
 
   async _submit(e) {
@@ -108,17 +148,34 @@ export class AuthView extends LitElement {
       [...form.querySelectorAll('md-outlined-text-field')].map((f) => [f.name, f.value]),
     )
 
+    const screen = this._screen()
     this._error = null
-    if (this.mode === 'signup' && data.password !== data.passwordConfirm) {
+    if ('passwordConfirm' in data && data.password !== data.passwordConfirm) {
       this._error = 'As senhas não conferem.'
       return
     }
 
     this._busy = true
     try {
-      if (this.mode === 'signup') await authService.signUp(data)
-      else await authService.signIn(data)
-      navigateHome()
+      switch (screen) {
+        case 'signup':
+          await authService.signUp(data)
+          navigateHome()
+          break
+        case 'forgot':
+          this._done = await authService.requestPasswordReset({ email: data.email })
+          break
+        case 'reset':
+          this._done = { user: await authService.resetPassword({ token: this.token, password: data.password }) }
+          break
+        case 'change':
+          await authService.changePassword({ currentPassword: data.currentPassword, newPassword: data.password })
+          this._done = {}
+          break
+        default:
+          await authService.signIn(data)
+          navigateHome()
+      }
     } catch (err) {
       this._error = err.message
     } finally {
@@ -127,7 +184,106 @@ export class AuthView extends LitElement {
   }
 
   render() {
-    return this._user ? this._renderAccount() : this._renderForm()
+    const screen = this._screen()
+    if (screen === 'account') return this._renderAccount()
+    if (this._done) return this._renderDone(screen)
+    if (['forgot', 'reset', 'change'].includes(screen) && !authService.supports(OPERATION_OF[screen])) {
+      return html`
+        <h1>Senha</h1>
+        <p class="subtitle">Este app não oferece essa operação.</p>
+        <md-text-button @click=${navigateToLogin}>Voltar para o login</md-text-button>
+      `
+    }
+    if (screen === 'forgot') return this._renderForgot()
+    if (screen === 'reset' || screen === 'change') return this._renderNewPassword(screen)
+    return this._renderForm(screen)
+  }
+
+  _passwordField({ name = 'password', label = 'Senha', autocomplete = 'new-password', hint = true } = {}) {
+    const min = authService.passwordMinLength()
+    return html`<md-outlined-text-field
+      name=${name}
+      label=${label}
+      type="password"
+      autocomplete=${autocomplete}
+      minlength=${hint ? min : 0}
+      supporting-text=${hint ? `Mínimo de ${min} caracteres.` : ''}
+      required
+    ></md-outlined-text-field>`
+  }
+
+  _renderError() {
+    return this._error ? html`<p class="error" role="alert">${this._error}</p>` : ''
+  }
+
+  _renderForgot() {
+    return html`
+      <h1>Esqueci minha senha</h1>
+      <p class="subtitle">Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha.</p>
+      <form @submit=${this._submit} novalidate>
+        <md-outlined-text-field
+          name="email"
+          label="E-mail"
+          type="email"
+          autocomplete="email"
+          required
+        ></md-outlined-text-field>
+        ${this._renderError()}
+        <md-filled-button type="submit" ?disabled=${this._busy}>Enviar link</md-filled-button>
+      </form>
+      <p class="switch">Lembrou a senha? <md-text-button @click=${navigateToLogin}>Entrar</md-text-button></p>
+    `
+  }
+
+  _renderNewPassword(screen) {
+    const change = screen === 'change'
+    return html`
+      <h1>${change ? 'Alterar senha' : 'Criar nova senha'}</h1>
+      <p class="subtitle">
+        ${change ? 'Confirme a senha atual e escolha a nova.' : 'Escolha a nova senha da sua conta.'}
+      </p>
+      <form @submit=${this._submit} novalidate>
+        ${change
+          ? this._passwordField({ name: 'currentPassword', label: 'Senha atual', autocomplete: 'current-password', hint: false })
+          : ''}
+        ${this._passwordField({ label: 'Nova senha' })}
+        ${this._passwordField({ name: 'passwordConfirm', label: 'Confirmar nova senha', hint: false })}
+        ${this._renderError()}
+        <div class="actions">
+          <md-filled-button type="submit" ?disabled=${this._busy}>Salvar senha</md-filled-button>
+          ${change ? html`<md-text-button type="button" @click=${navigateToAccount}>Cancelar</md-text-button>` : ''}
+        </div>
+      </form>
+    `
+  }
+
+  _renderDone(screen) {
+    if (screen === 'forgot') {
+      const { previewUrl } = this._done
+      return html`
+        <h1>Verifique seu e-mail</h1>
+        <p class="subtitle">
+          Se houver uma conta com esse e-mail, você vai receber um link para criar uma nova senha.
+        </p>
+        ${previewUrl
+          ? html`<p class="notice done">
+              Modo local de demonstração: nenhum e-mail é enviado. O link seria este:
+              <a href=${previewUrl}>${previewUrl}</a>
+            </p>`
+          : ''}
+        <md-text-button @click=${navigateToLogin}>Voltar para o login</md-text-button>
+      `
+    }
+    const signedIn = screen === 'change' || this._done.user
+    return html`
+      <h1>Senha alterada</h1>
+      <p class="subtitle">
+        ${signedIn ? 'Sua nova senha já está valendo.' : 'Sua nova senha já está valendo. Entre com ela.'}
+      </p>
+      ${signedIn
+        ? html`<md-filled-button @click=${navigateToAccount}>Minha conta</md-filled-button>`
+        : html`<md-filled-button @click=${navigateToLogin}>Entrar</md-filled-button>`}
+    `
   }
 
   _renderAccount() {
@@ -143,15 +299,23 @@ export class AuthView extends LitElement {
         <dt>Desde</dt>
         <dd>${since}</dd>
       </dl>
-      <md-outlined-button @click=${() => authService.signOut()}>
-        <md-icon slot="icon">logout</md-icon>
-        Sair
-      </md-outlined-button>
+      <div class="actions">
+        ${authService.supports('changePassword')
+          ? html`<md-outlined-button @click=${navigateToChangePassword}>
+              <md-icon slot="icon">password</md-icon>
+              Alterar senha
+            </md-outlined-button>`
+          : ''}
+        <md-outlined-button @click=${() => authService.signOut()}>
+          <md-icon slot="icon">logout</md-icon>
+          Sair
+        </md-outlined-button>
+      </div>
     `
   }
 
-  _renderForm() {
-    const signup = this.mode === 'signup'
+  _renderForm(screen) {
+    const signup = screen === 'signup' && authService.supports('signUp')
     return html`
       <h1>${signup ? 'Criar conta' : 'Entrar'}</h1>
       <p class="subtitle">
@@ -174,15 +338,12 @@ export class AuthView extends LitElement {
           autocomplete="email"
           required
         ></md-outlined-text-field>
-        <md-outlined-text-field
-          name="password"
-          label="Senha"
-          type="password"
-          autocomplete=${signup ? 'new-password' : 'current-password'}
-          minlength=${signup ? 6 : 0}
-          supporting-text=${signup ? 'Mínimo de 6 caracteres.' : ''}
-          required
-        ></md-outlined-text-field>
+        ${signup ? this._passwordField() : this._passwordField({ autocomplete: 'current-password', hint: false })}
+        ${!signup && authService.supports('requestPasswordReset')
+          ? html`<md-text-button class="forgot" type="button" @click=${navigateToForgotPassword}>
+              Esqueci minha senha
+            </md-text-button>`
+          : ''}
         ${signup
           ? html`<md-outlined-text-field
               name="passwordConfirm"
@@ -192,24 +353,29 @@ export class AuthView extends LitElement {
               required
             ></md-outlined-text-field>`
           : ''}
-        ${this._error ? html`<p class="error" role="alert">${this._error}</p>` : ''}
+        ${this._renderError()}
         <md-filled-button type="submit" ?disabled=${this._busy}>
           ${signup ? 'Criar conta' : 'Entrar'}
         </md-filled-button>
       </form>
 
-      <p class="switch">
-        ${signup
-          ? html`Já tem conta? <md-text-button @click=${navigateToLogin}>Entrar</md-text-button>`
-          : html`Não tem conta? <md-text-button @click=${navigateToSignup}>Criar conta</md-text-button>`}
-      </p>
-
-      <p class="notice">
-        Modo local de demonstração: as contas ficam salvas apenas neste navegador até o backend
-        de autenticação ser ligado.
-      </p>
+      ${signup
+        ? html`<p class="switch">Já tem conta? <md-text-button @click=${navigateToLogin}>Entrar</md-text-button></p>`
+        : authService.supports('signUp')
+          ? html`<p class="switch">
+              Não tem conta? <md-text-button @click=${navigateToSignup}>Criar conta</md-text-button>
+            </p>`
+          : ''}
+      ${authService.isLocal()
+        ? html`<p class="notice">
+            Modo local de demonstração: as contas ficam salvas apenas neste navegador até o backend
+            de autenticação ser ligado.
+          </p>`
+        : ''}
     `
   }
 }
+
+const OPERATION_OF = { forgot: 'requestPasswordReset', reset: 'resetPassword', change: 'changePassword' }
 
 customElements.define('auth-view', AuthView)
