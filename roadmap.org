@@ -690,14 +690,50 @@ id embutido nem propriedade compartilhada.
     mostrando um =page_view= por navegação de hash e nenhuma duplicata
     na carga inicial (o =DebugView= com =params: { debug_mode: true }=
     ajuda);
-  - decidir consentimento/LGPD: o GA4 usa cookie, então o caminho é
-    Consent Mode v2 (ou um banner) — hoje o appshell não tem nenhum dos
-    dois, e a decisão depende do público de cada app;
+  - consentimento/LGPD — feito no A2.1, abaixo;
   - eventos offline são perdidos (o PWA funciona sem rede, o beacon
     não); avaliar a receita de fila offline do Workbox se a subcontagem
     incomodar;
   - bloqueadores de anúncio derrubam o =gtag.js= para uma fatia real
     dos usuários — a medição é piso, não censo.
+
+*** DONE A2.1 — Consentimento (LGPD) com Consent Mode v2
+CLOSED: [2026-09-17 qui]
+- Padrão *seguro*: =analytics.requireConsent= vale =true=; o app que
+  não precisa pedir (uso interno) passa =false=. Esquecer de pedir é o
+  erro caro, então é o default.
+- Modo *básico* do Consent Mode: sem resposta (ou com recusa) o
+  =gtag.js= nem é baixado — nenhum cookie, nenhuma requisição. O modo
+  avançado mandaria pings sem cookie mesmo com consentimento negado,
+  o que sob a LGPD ainda é tratamento sem base legal.
+- Ao instalar, =gtag('consent', 'default', ...)= vem antes do =config=;
+  =ad_storage=, =ad_user_data= e =ad_personalization= ficam sempre
+  =denied= (o appshell não usa anúncios); só =analytics_storage=
+  acompanha a escolha.
+- =services/consent-service.js=: ='granted'= / ='denied'= / =null=,
+  salvo em =storageKey('consent:analytics')= (cada app na mesma origem
+  pede por si). Exportado em =src/index.js=.
+- =<consent-banner>= no fluxo da página, acima do rodapé (não cobre o
+  conteúdo), com "Recusar" e "Aceitar" do mesmo peso visual — recusar
+  tem que ser tão fácil quanto aceitar. =analytics.privacyUrl= opcional
+  vira o link "Saiba mais".
+- Config > Privacidade (=#/config/privacidade=, com =md-switch=) para
+  trocar a resposta depois; só aparece no drawer (e a rota só abre)
+  quando o app tem GA4 com consentimento.
+- Aceitar conta a tela atual (o =page_view= da carga fica guardado até
+  a resposta). Revogar manda =consent update= com =analytics_storage:
+  denied=, para de enviar e apaga os cookies =<prefixo>_ga*= do app
+  (tentando o host e cada domínio pai, porque o gtag grava com
+  =cookie_domain: 'auto'=).
+- Resultado: =npm test= — 76 testes (15 novos); build OK. Conferido no
+  navegador com um id falso (=G-TESTE12345=): banner aparece e nada do
+  gtag carrega antes da resposta; ao aceitar, =consent default= →
+  =config= → =page_view= da home + um por navegação; ao desligar em
+  Privacidade, =consent update= negado e nenhum evento depois.
+- Não conferido: a remoção dos cookies no navegador real (a extensão
+  de automação bloqueia =document.cookie=, e um id falso não grava
+  =_ga=) — só por teste unitário. Fica junto da verificação com um id
+  real, ainda pendente.
 
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com

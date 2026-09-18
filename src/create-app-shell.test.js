@@ -129,11 +129,24 @@ describe('validateConfig', () => {
 describe('validateConfig — analytics', () => {
   it('aceita o id do GA4 do app e assume provider "ga4"', () => {
     const analytics = validateConfig({ ...base, analytics: { id: 'G-ABC123' } }).analytics
-    expect(analytics).toEqual({ provider: 'ga4', id: 'G-ABC123', cookiePrefix: undefined, params: {} })
+    expect(analytics).toEqual({
+      provider: 'ga4',
+      id: 'G-ABC123',
+      cookiePrefix: undefined,
+      params: {},
+      requireConsent: true,
+      privacyUrl: undefined,
+    })
   })
 
-  it('passa cookiePrefix e params adiante', () => {
-    const analytics = { id: 'G-ABC123', cookiePrefix: 'legisreader', params: { debug_mode: true } }
+  it('passa cookiePrefix, params, requireConsent e privacyUrl adiante', () => {
+    const analytics = {
+      id: 'G-ABC123',
+      cookiePrefix: 'legisreader',
+      params: { debug_mode: true },
+      requireConsent: false,
+      privacyUrl: 'https://exemplo.com/privacidade',
+    }
     expect(validateConfig({ ...base, analytics }).analytics).toEqual({ provider: 'ga4', ...analytics })
   })
 
@@ -160,5 +173,9 @@ describe('validateConfig — analytics', () => {
     expect(() => validateConfig({ ...base, analytics: 'G-ABC123' })).toThrow(/"analytics"/)
     expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', cookiePrefix: 1 } })).toThrow(/cookiePrefix/)
     expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', params: 'x' } })).toThrow(/params/)
+    expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', requireConsent: 'sim' } })).toThrow(
+      /requireConsent/,
+    )
+    expect(() => validateConfig({ ...base, analytics: { id: 'G-ABC123', privacyUrl: 1 } })).toThrow(/privacyUrl/)
   })
 })

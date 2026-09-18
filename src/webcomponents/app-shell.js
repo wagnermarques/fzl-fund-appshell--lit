@@ -1,6 +1,8 @@
 import { LitElement, html, css } from 'lit'
 import { registerSW } from 'virtual:pwa-register'
+import './config-privacy-view.js'
 import './config-rest-services-view.js'
+import './consent-banner.js'
 import './nav-accordion.js'
 import './app-footer.js'
 import './app-header.js'
@@ -8,10 +10,12 @@ import './auth-view.js'
 import './not-found-view.js'
 import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
+import { consentService } from '../services/consent-service.js'
 import {
   NOT_FOUND,
   createRouter,
   navigateToAccount,
+  navigateToConfigPrivacy,
   navigateToConfigRestServices,
   navigateToLogin,
   navigateToSignup,
@@ -30,6 +34,7 @@ export class AppShell extends LitElement {
     _drawerOpen: { state: true },
     _updateAvailable: { state: true },
     _user: { state: true },
+    _consent: { state: true },
   }
 
   static styles = css`
@@ -51,6 +56,7 @@ export class AppShell extends LitElement {
        componente com camadas internas próprias (ex.: md-text-button),
        que pode escapar do empilhamento do drawer. */
     main[inert],
+    consent-banner[inert],
     app-footer[inert] {
       pointer-events: none;
     }
@@ -104,6 +110,7 @@ export class AppShell extends LitElement {
     this._drawerOpen = false
     this._updateAvailable = false
     this._user = null
+    this._consent = null
     this._swRegistration = null
     this._updateSW = registerSW({
       onNeedRefresh: () => {
@@ -121,7 +128,14 @@ export class AppShell extends LitElement {
 
     // Antes do createRouter(): o callback dele dispara já na carga inicial,
     // e é esse primeiro disparo que vira o page_view da tela de entrada.
-    analyticsService.init(this.analytics)
+    // Sem consentimento ainda, o page_view fica guardado e só sai se o
+    // usuário aceitar no banner.
+    this._consent = consentService.get()
+    analyticsService.init(this.analytics, { consent: this._consent })
+    this._unsubscribeConsent = consentService.subscribe((value) => {
+      this._consent = value
+      analyticsService.setConsent(value)
+    })
 
     this._unsubscribe = createRouter(
       (route) => {
@@ -152,6 +166,7 @@ export class AppShell extends LitElement {
     super.disconnectedCallback()
     this._unsubscribe?.()
     this._unsubscribeAuth?.()
+    this._unsubscribeConsent?.()
     document.removeEventListener('visibilitychange', this._onVisibilityChange)
   }
 
@@ -213,6 +228,16 @@ export class AppShell extends LitElement {
                       </md-list-item>
                     </md-list>
                   </nav-accordion>
+                  ${this._asksConsent()
+                    ? html`
+                        <md-list>
+                          <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToConfigPrivacy)}>
+                            <md-icon slot="start">privacy_tip</md-icon>
+                            Privacidade
+                          </md-list-item>
+                        </md-list>
+                      `
+                    : ''}
                 </nav-accordion>
               `
             : ''}
@@ -220,6 +245,10 @@ export class AppShell extends LitElement {
       </md-navigation-drawer-modal>
 
       <main ?inert=${this._drawerOpen}>${this._renderRoute()}</main>
+
+      ${this._asksConsent() && this._consent === null
+        ? html`<consent-banner ?inert=${this._drawerOpen} .privacyUrl=${this.analytics.privacyUrl}></consent-banner>`
+        : ''}
 
       <app-footer ?inert=${this._drawerOpen}>${this.footerItems ? this.footerItems() : ''}</app-footer>
 
@@ -258,6 +287,11 @@ export class AppShell extends LitElement {
         </md-list>
       </nav-accordion>
     `
+  }
+
+  /** O app tem GA4 ligado e quer pedir consentimento (o padrão). */
+  _asksConsent() {
+    return this.analytics.provider === 'ga4' && this.analytics.requireConsent !== false
   }
 
   _renderAccountItems() {
@@ -303,6 +337,12 @@ export class AppShell extends LitElement {
         return html`<auth-view></auth-view>`
       case 'config-backend-servicos-rest':
         return html`<config-rest-services-view></config-rest-services-view>`
+      case 'config-privacidade':
+        // Sem GA4 (ou com requireConsent: false) não há o que configurar.
+        if (this._asksConsent()) {
+          return html`<config-privacy-view .privacyUrl=${this.analytics.privacyUrl}></config-privacy-view>`
+        }
+        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
       case NOT_FOUND:
       default:
         return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`

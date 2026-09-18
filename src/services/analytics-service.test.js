@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { analyticsService, gtagSrc, pageViewParams, safePageLocation } from './analytics-service.js'
+import { analyticsService, gtagSrc, isGaCookie, pageViewParams, safePageLocation } from './analytics-service.js'
 
 const BASE = 'https://exemplo.com/app/'
 
@@ -10,12 +10,20 @@ const BASE = 'https://exemplo.com/app/'
  *  window.gtag, que o próprio serviço substitui ao instalar a tag. */
 function fakeEnv() {
   const scripts = []
-  const win = { location: { origin: 'https://exemplo.com', pathname: '/app/' } }
+  const win = { location: { origin: 'https://exemplo.com', pathname: '/app/', hostname: 'app.exemplo.com' } }
+  // document.cookie de mentira: cada atribuição fica registrada em `writes`.
+  const writes = []
   const doc = {
     createElement: () => ({}),
     head: { appendChild: (el) => scripts.push(el) },
+    get cookie() {
+      return 'legisreader_ga=GA1.1; legisreader_ga_ABC123=GS1.1; outro=1'
+    },
+    set cookie(value) {
+      writes.push(value)
+    },
   }
-  return { win, doc, scripts }
+  return { win, doc, scripts, writes }
 }
 
 /** As chamadas do gtag, já como arrays comuns (o dataLayer guarda objetos
@@ -28,7 +36,10 @@ function events(win) {
   return calls(win).filter(([kind]) => kind === 'event')
 }
 
-const ga4 = { provider: 'ga4', id: 'G-ABC123', params: {} }
+// Os testes de page_view/track partem do GA4 já liberado; o fluxo de
+// consentimento tem o seu próprio describe lá embaixo.
+const ga4 = { provider: 'ga4', id: 'G-ABC123', params: {}, requireConsent: false }
+const ga4WithConsent = { ...ga4, requireConsent: true }
 
 beforeEach(() => analyticsService.reset())
 
@@ -121,5 +132,98 @@ describe('analyticsService.track', () => {
   it('fica em silêncio sem analytics ligado', () => {
     const { win } = fakeEnv()
     expect(analyticsService.track('x', {}, { win })).toBe(false)
+  })
+})
+
+describe('analyticsService — consentimento', () => {
+  const home = { name: 'home', segments: [], query: {} }
+
+  it('sem resposta do usuário não baixa o gtag.js nem manda nada', () => {
+    const { win, doc, scripts } = fakeEnv()
+    expect(analyticsService.init(ga4WithConsent, { win, doc })).toBe(false)
+    expect(analyticsService.needsConsent()).toBe(true)
+    expect(analyticsService.trackPageView(home, 'App', { win })).toBe(false)
+    expect(analyticsService.track('x', {}, { win })).toBe(false)
+    expect(scripts).toHaveLength(0)
+    expect(win.dataLayer).toBeUndefined()
+  })
+
+  it('com consentimento já salvo liga direto na carga', () => {
+    const { win, doc, scripts } = fakeEnv()
+    expect(analyticsService.init(ga4WithConsent, { win, doc, consent: 'granted' })).toBe(true)
+    expect(scripts).toHaveLength(1)
+  })
+
+  it('consentimento negado e salvo continua desligado', () => {
+    const { win, doc, scripts } = fakeEnv()
+    expect(analyticsService.init(ga4WithConsent, { win, doc, consent: 'denied' })).toBe(false)
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('o default do Consent Mode vem antes do config, com anúncios sempre negados', () => {
+    const { win, doc } = fakeEnv()
+    analyticsService.init(ga4WithConsent, { win, doc, consent: 'granted' })
+    const kinds = calls(win).map(([kind]) => kind)
+    expect(kinds.indexOf('consent')).toBeLessThan(kinds.indexOf('config'))
+    expect(calls(win)[0]).toEqual([
+      'consent',
+      'default',
+      { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' },
+    ])
+  })
+
+  it('ao aceitar, liga e conta a tela em que o usuário já estava', () => {
+    const { win, doc, scripts } = fakeEnv()
+    analyticsService.init(ga4WithConsent, { win, doc })
+    analyticsService.trackPageView(home, 'App', { win })
+
+    expect(analyticsService.setConsent('granted', { win, doc })).toBe(true)
+    expect(scripts).toHaveLength(1)
+    expect(events(win).map(([, name, params]) => [name, params.route_name])).toEqual([['page_view', 'home']])
+  })
+
+  it('ao revogar, avisa o gtag, para de mandar e apaga os cookies _ga do app', () => {
+    const { win, doc, writes } = fakeEnv()
+    analyticsService.init({ ...ga4WithConsent, cookiePrefix: 'legisreader' }, { win, doc, consent: 'granted' })
+
+    expect(analyticsService.setConsent('denied', { win, doc })).toBe(false)
+    expect(calls(win).at(-1)).toEqual([
+      'consent',
+      'update',
+      { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' },
+    ])
+    expect(analyticsService.track('x', {}, { win })).toBe(false)
+
+    const deleted = new Set(writes.map((w) => w.split('=')[0]))
+    expect(deleted).toEqual(new Set(['legisreader_ga', 'legisreader_ga_ABC123']))
+    // Tenta o host e cada domínio pai — o gtag grava no mais alto que der.
+    expect(writes.some((w) => w.includes('domain=.exemplo.com'))).toBe(true)
+  })
+
+  it('aceitar de novo depois de revogar não recarrega o script', () => {
+    const { win, doc, scripts } = fakeEnv()
+    analyticsService.init(ga4WithConsent, { win, doc, consent: 'granted' })
+    analyticsService.setConsent('denied', { win, doc })
+    analyticsService.setConsent('granted', { win, doc })
+    expect(scripts).toHaveLength(1)
+    expect(calls(win).at(-1)[0]).toBe('consent')
+    expect(calls(win).at(-1)[2].analytics_storage).toBe('granted')
+  })
+
+  it('requireConsent: false não pede consentimento', () => {
+    const { win, doc } = fakeEnv()
+    analyticsService.init(ga4, { win, doc })
+    expect(analyticsService.needsConsent()).toBe(false)
+  })
+})
+
+describe('isGaCookie', () => {
+  it('reconhece só os cookies do GA4 com o prefixo do app', () => {
+    expect(isGaCookie('_ga')).toBe(true)
+    expect(isGaCookie('_ga_ABC123')).toBe(true)
+    expect(isGaCookie('legisreader_ga', 'legisreader')).toBe(true)
+    expect(isGaCookie('_ga', 'legisreader')).toBe(false)
+    expect(isGaCookie('outroapp_ga', 'legisreader')).toBe(false)
+    expect(isGaCookie('_gat')).toBe(false)
   })
 })

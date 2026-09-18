@@ -73,6 +73,7 @@ describe('resolveRoute', () => {
     expect(resolveRoute('#/conta/entrar').name).toBe('conta-entrar')
     expect(resolveRoute('#/conta/cadastro').name).toBe('conta-cadastro')
     expect(resolveRoute('#/config/backend/servicos-rest').name).toBe('config-backend-servicos-rest')
+    expect(resolveRoute('#/config/privacidade').name).toBe('config-privacidade')
   })
 
   it('devolve not-found em vez de cair na home', () => {

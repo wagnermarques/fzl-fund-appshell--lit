@@ -21,6 +21,7 @@
  *   #/conta/cadastro                    -> signup
  *   #/conta                             -> account (logged-in user)
  *   #/config/backend/servicos-rest      -> REST services base path config
+ *   #/config/privacidade                -> consentimento do analytics
  */
 
 export const NOT_FOUND = 'not-found'
@@ -55,6 +56,7 @@ export const shellRoutes = [
   { name: 'conta-cadastro', match: pattern('conta/cadastro') },
   { name: 'conta', match: pattern('conta') },
   { name: 'config-backend-servicos-rest', match: pattern('config/backend/servicos-rest') },
+  { name: 'config-privacidade', match: pattern('config/privacidade') },
 ]
 
 // Redirecionamentos de confirmação de e-mail/magic link/reset de senha de
@@ -147,4 +149,8 @@ export function navigateToAccount() {
 
 export function navigateToConfigRestServices() {
   navigate('config/backend/servicos-rest')
+}
+
+export function navigateToConfigPrivacy() {
+  navigate('config/privacidade')
 }

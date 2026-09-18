@@ -67,6 +67,10 @@ function validateDrawer(drawer) {
 
 /** Valida analytics e devolve { provider: 'none' } ou a config do GA4.
  *
+ *  requireConsent vale true por padrão: sob a LGPD o cookie do GA4 precisa
+ *  de consentimento, e esquecer de pedir é o erro caro. privacyUrl, se
+ *  houver, vira o link "Saiba mais" do banner.
+ *
  *  id vazio/ausente desliga o analytics em vez de dar erro: um app passa
  *  `id: import.meta.env.VITE_GA4_MEASUREMENT_ID`, e essa variável
  *  normalmente não existe em desenvolvimento — quebrar o `npm run dev` por
@@ -79,7 +83,7 @@ function validateAnalytics(analytics) {
     throw new Error('createAppShell: "analytics" deve ser um objeto')
   }
 
-  const { provider = 'ga4', id = '', cookiePrefix, params = {} } = analytics
+  const { provider = 'ga4', id = '', cookiePrefix, params = {}, requireConsent = true, privacyUrl } = analytics
 
   if (!ANALYTICS_PROVIDERS.includes(provider)) {
     throw new Error(`createAppShell: analytics.provider não reconhece "${provider}" (use "ga4" ou "none")`)
@@ -94,8 +98,14 @@ function validateAnalytics(analytics) {
   if (typeof params !== 'object' || params === null) {
     throw new Error('createAppShell: analytics.params deve ser um objeto')
   }
+  if (typeof requireConsent !== 'boolean') {
+    throw new Error('createAppShell: analytics.requireConsent deve ser true ou false')
+  }
+  if (privacyUrl !== undefined && typeof privacyUrl !== 'string') {
+    throw new Error('createAppShell: analytics.privacyUrl deve ser uma string')
+  }
 
-  return { provider: 'ga4', id, cookiePrefix, params }
+  return { provider: 'ga4', id, cookiePrefix, params, requireConsent, privacyUrl }
 }
 
 /** Valida a config de createAppShell() e devolve os campos normalizados. */

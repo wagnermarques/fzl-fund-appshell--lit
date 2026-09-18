@@ -19,6 +19,10 @@
  * por trackPageView(), a partir do callback do createRouter() (que dispara
  * uma vez na carga inicial e a cada hashchange — ou seja, exatamente uma
  * vez por view, sem duplicar a primeira).
+ *
+ * Consentimento (LGPD): por padrão nada é carregado até o usuário aceitar
+ * no banner do shell (consent-service.js). Um app que não precisa pedir
+ * — uso interno, por exemplo — passa requireConsent: false.
  */
 import { href } from '../router.js'
 
@@ -68,6 +72,18 @@ export function gtagSrc(id) {
   return `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`
 }
 
+/** Os sinais do Consent Mode v2. O appshell não usa anúncios, então os
+ *  três ad_* ficam sempre negados; só analytics_storage acompanha a
+ *  escolha do usuário. */
+function consentSignals(granted) {
+  return {
+    analytics_storage: granted ? 'granted' : 'denied',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+  }
+}
+
 function installGtag(id, { doc, win, cookiePrefix, params }) {
   win.dataLayer = win.dataLayer || []
   // Precisa ser uma function de verdade, não uma arrow com ...args: o
@@ -78,6 +94,10 @@ function installGtag(id, { doc, win, cookiePrefix, params }) {
   }
   win.gtag = gtag
 
+  // O default do Consent Mode precisa vir antes do config. Só chegamos
+  // aqui com o consentimento dado (ou dispensado pelo app), daí o
+  // analytics_storage já 'granted'.
+  gtag('consent', 'default', consentSignals(true))
   gtag('js', new Date())
   gtag('config', id, {
     send_page_view: false,
@@ -95,49 +115,122 @@ function installGtag(id, { doc, win, cookiePrefix, params }) {
   doc.head.appendChild(script)
 }
 
-let active = null
+/** Nomes dos cookies do GA4 deste app: <prefixo>_ga e <prefixo>_ga_<id>. */
+export function isGaCookie(name, cookiePrefix = '') {
+  const base = `${cookiePrefix}_ga`
+  return name === base || name.startsWith(`${base}_`)
+}
+
+/** Apaga os cookies do GA4 deste app ao revogar o consentimento. O gtag
+ *  grava com cookie_domain 'auto' (o domínio mais alto aceito), que daqui
+ *  não dá pra saber — então tenta o host e cada domínio pai. */
+function deleteGaCookies(doc, win, cookiePrefix) {
+  const names = (doc.cookie ?? '')
+    .split(';')
+    .map((part) => part.split('=')[0].trim())
+    .filter((name) => name && isGaCookie(name, cookiePrefix))
+  const labels = (win.location?.hostname ?? '').split('.')
+  const domains = [null, ...labels.map((_, i) => `.${labels.slice(i).join('.')}`)]
+  for (const name of names) {
+    for (const domain of domains) {
+      doc.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domain ? `; domain=${domain}` : ''}`
+    }
+  }
+}
+
+// config: a config validada (ou null); installed: o gtag.js já foi
+// injetado; enabled: pode mandar evento agora; lastView: a última rota
+// vista, para contar a tela onde o usuário estava quando aceitou.
+let state = { config: null, installed: false, enabled: false, lastView: null, env: null }
+
+function envOf({ doc, win } = {}) {
+  return { doc: doc ?? state.env?.doc ?? globalThis.document, win: win ?? state.env?.win ?? globalThis.window }
+}
+
+function sendPageView(win) {
+  const { route, title, loc } = state.lastView
+  const location_ = loc ?? win.location
+  const baseUrl = `${location_.origin}${location_.pathname}`
+  win.gtag?.('event', 'page_view', pageViewParams({ route, title, baseUrl }))
+}
+
+function enable(env) {
+  const { config } = state
+  if (!state.installed) {
+    installGtag(config.id, { ...env, cookiePrefix: config.cookiePrefix, params: config.params })
+    state.installed = true
+  } else {
+    env.win.gtag?.('consent', 'update', consentSignals(true))
+  }
+  state.enabled = true
+}
 
 export const analyticsService = {
-  /** Liga o GA4 com a config já validada por createAppShell. Devolve true
-   *  quando ficou ativo. Chamar de novo com o mesmo id não recarrega o
-   *  script. */
-  init(analytics, { doc, win } = {}) {
-    const document_ = doc ?? globalThis.document
-    const window_ = win ?? globalThis.window
-    if (!analytics || analytics.provider !== 'ga4' || !document_ || !window_) return false
-    if (active?.id === analytics.id) return true
+  /** Recebe a config já validada por createAppShell e o consentimento
+   *  salvo. Liga o GA4 na hora só se o app dispensou o consentimento
+   *  (requireConsent: false) ou se o usuário já aceitou antes; senão fica
+   *  à espera de setConsent('granted') — sem baixar o gtag.js, sem
+   *  cookie, sem requisição nenhuma (o modo "básico" do Consent Mode: o
+   *  "avançado" mandaria pings sem cookie mesmo com consentimento negado,
+   *  o que sob a LGPD ainda é tratamento de dado sem base legal).
+   *
+   *  Devolve true quando ficou ativo. Chamar de novo com o mesmo id não
+   *  recarrega o script. */
+  init(analytics, { doc, win, consent = null } = {}) {
+    const env = envOf({ doc, win })
+    if (!analytics || analytics.provider !== 'ga4' || !env.doc || !env.win) return false
+    if (state.config?.id === analytics.id) return state.enabled
 
-    active = { id: analytics.id }
-    installGtag(analytics.id, {
-      doc: document_,
-      win: window_,
-      cookiePrefix: analytics.cookiePrefix,
-      params: analytics.params,
-    })
-    return true
+    state = { config: analytics, installed: false, enabled: false, lastView: null, env: { doc, win } }
+    if (analytics.requireConsent === false || consent === 'granted') enable(env)
+    return state.enabled
+  },
+
+  /** true quando o app tem GA4 configurado e o usuário precisa responder. */
+  needsConsent() {
+    return !!state.config && state.config.requireConsent !== false
+  },
+
+  /** Aplica a resposta do usuário. 'granted' liga (e conta a tela atual,
+   *  que ficou sem page_view na carga); 'denied' desliga, avisa o gtag e
+   *  apaga os cookies _ga deste app. */
+  setConsent(value, env_) {
+    if (!state.config) return false
+    const env = envOf(env_)
+    if (value === 'granted') {
+      if (state.enabled) return true
+      enable(env)
+      if (state.lastView) sendPageView(env.win)
+      return true
+    }
+    if (state.enabled) {
+      env.win.gtag?.('consent', 'update', consentSignals(false))
+      deleteGaCookies(env.doc, env.win, state.config.cookiePrefix)
+    }
+    state.enabled = false
+    return false
   },
 
   /** Um page_view por view — chamado pelo app-shell a cada mudança de rota. */
   trackPageView(route, title = '', { win, loc } = {}) {
-    const window_ = win ?? globalThis.window
-    if (!active || !window_) return false
-    const location_ = loc ?? window_.location
-    const baseUrl = `${location_.origin}${location_.pathname}`
-    window_.gtag?.('event', 'page_view', pageViewParams({ route, title, baseUrl }))
+    state.lastView = { route, title, loc }
+    const window_ = envOf({ win }).win
+    if (!state.enabled || !window_) return false
+    sendPageView(window_)
     return true
   },
 
   /** Evento de domínio do app consumidor: track('livro_aberto', { id }). */
   track(name, params = {}, { win } = {}) {
-    const window_ = win ?? globalThis.window
-    if (!active || !window_ || !name) return false
+    const window_ = envOf({ win }).win
+    if (!state.enabled || !window_ || !name) return false
     window_.gtag?.('event', name, params)
     return true
   },
 
   /** Desliga (usado pelos testes; um app não precisa chamar). */
   reset() {
-    active = null
+    state = { config: null, installed: false, enabled: false, lastView: null, env: null }
   },
 }
 
