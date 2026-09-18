@@ -50,19 +50,20 @@ export class AppShell extends LitElement {
     }
     /* Cinto e suspensório: além do z-index abaixo (que resolve o
        empilhamento visual do drawer em si), bloqueia clique em qualquer
-       coisa da página por trás enquanto o drawer estiver aberto. A
-       página continua visível (escurecida pelo scrim) — quem precisar
-       de uma ação clicável ali deve usar texto/link simples, não um
-       componente com camadas internas próprias (ex.: md-text-button),
-       que pode escapar do empilhamento do drawer. */
+       coisa da página por trás enquanto o drawer estiver aberto — o
+       scrim opaco já a esconde, mas um componente com camadas internas
+       próprias (ex.: md-text-button) pode escapar do empilhamento do
+       drawer e continuar clicável. */
     main[inert],
     consent-banner[inert],
     app-footer[inert] {
       pointer-events: none;
     }
     md-navigation-drawer-modal {
+      /* Scrim opaco (não os 32% do Material): com o drawer aberto, nada
+         da página por trás fica visível ao lado do painel. */
       --md-navigation-drawer-modal-scrim-color: #000;
-      --md-navigation-drawer-modal-scrim-opacity: 0.32;
+      --md-navigation-drawer-modal-scrim-opacity: 1;
       /* Sem isso, o painel do drawer cai no fallback interno do componente
          (branco fixo, #fff) em vez de usar a cor de superfície do tema —
          em tema escuro isso destoa e pode ser lido como "sem fundo
@@ -209,7 +210,7 @@ export class AppShell extends LitElement {
           ${this.drawer.sections.map((section) => this._renderDrawerSection(section))}
           ${this.drawer.shellSections.conta
             ? html`
-                <nav-accordion label="Conta" expanded>
+                <nav-accordion label="Conta">
                   <md-list>${this._renderAccountItems()}</md-list>
                 </nav-accordion>
               `
@@ -217,7 +218,7 @@ export class AppShell extends LitElement {
           ${this.drawer.shellSections.config
             ? html`
                 <nav-accordion label="Config">
-                  <nav-accordion label="Backend" nested expanded>
+                  <nav-accordion label="Backend" nested>
                     <md-list>
                       <md-list-item
                         type="button"
