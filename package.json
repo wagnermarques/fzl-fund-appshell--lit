@@ -10,13 +10,15 @@
     "./webcomponents/*": "./src/webcomponents/*.js"
   },
   "bin": {
-    "appshell-generate-icons": "./scripts/generate-icons.mjs"
+    "appshell-generate-icons": "./scripts/generate-icons.mjs",
+    "appshell-set-ga4-variable": "./scripts/set-ga4-variable.sh"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "npm run build && npm run preview",
+    "ga4:variable": "./scripts/set-ga4-variable.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },
