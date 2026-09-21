@@ -1,0 +1,388 @@
+#+TITLE: Funcionalidades do AppShell (fzl-fund-appshell--lit)
+#+AUTHOR: FzlSoft
+#+DATE: [2026-09-21 seg]
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:2
+
+* Introdução e Visão Geral
+
+O =fzl-fund-appshell--lit= é um *appshell de referência* e biblioteca base
+reutilizável, construído com *Lit* (Web Components nativos) e *Material Design 3*
+(=@material/web=). Ele foi projetado para servir como fundação estrutural para
+aplicações Web e PWAs instaláveis da FzlSoft e da família =fzlbpms-funds=.
+
+** Filosofia de Arquitetura
+
+1. *Componentes Web Nativos (Lit)*: Sem dependência de frameworks pesados ou
+   proprietários. Interoperável com qualquer host page ou biblioteca.
+2. *Local-First e Offline-First*: A aplicação funciona perfeitamente sem rede e
+   sem backend obrigatório. Dados essenciais de interface e sessão residem no
+   =localStorage=.
+3. *Consumo como Submódulo Git ou Pacote*: O appshell é desenhado para ser
+   incorporado sem alterações no seu código-fonte; todas as customizações
+   ocorrem por configuração declarativa, slots e provedores.
+4. *Isolamento Multi-App*: Evita colisão de dados no =localStorage= e cookies de
+   analytics para diferentes aplicações hospedadas na mesma origem (ex.:
+   =usuario.github.io/<repo>=).
+5. *Privacidade por Padrão (LGPD / GDPR)*: Integração com Google Consent Mode v2
+   e bloqueio total de telemetria sem consentimento prévio do usuário.
+
+---
+
+* Casca de Aplicação e Layout (=<app-shell>=)
+
+O componente =<app-shell>= gerencia a estrutura visual completa e o ciclo de
+vida da aplicação.
+
+#+begin_src text
++------------------------------------------------------------------+
+|  <app-header>                                                    |
+|  [Menu] Título do App               [headerActions slot] [Conta] |
++------------------------------------------------------------------+
+|  [md-navigation-drawer-modal]  |  <main>                         |
+|  - Seções customizadas do app  |                                 |
+|  - Seção Conta (opcional)      |  (View ativa renderizada        |
+|  - Seção Config (opcional)     |   conforme a rota do router)    |
+|                                |                                 |
++------------------------------------------------------------------+
+|  <consent-banner> (exibido apenas se pendente consentimento)     |
++------------------------------------------------------------------+
+|  <app-footer>                                                    |
+|  [Status Conexão] [Relógio]    |  [footerItems slot]  [Versão]   |
++------------------------------------------------------------------+
+#+end_src
+
+** Cabeçalho (=<app-header>=)
+- *Botão de Menu Hamburger*: Dispara evento =menu-toggle= para abertura do drawer lateral.
+- *Título da Aplicação*: Configurável via propriedade =title=, com clique rápido que redireciona para a tela inicial (=#/=).
+- *Slot para Ações Rápidas*: Permite a injeção de botões, barras de busca ou widgets adicionais via =headerActions()=.
+- *Status do Usuário (=<user-status>=)*: Exibe botão "Entrar" (para visitantes) ou o avatar do usuário logado com menu dropdown e sino de notificações.
+
+** Drawer de Navegação Lateral (=md-navigation-drawer-modal=)
+- *Painel Modal Padronizado*: Scrim opaco e estilização alinhada com as cores de superfície do tema ativo.
+- *Acordeões Colapsáveis (=<nav-accordion>=)*: Agrupamento em seções expansíveis/colapsáveis.
+- *Tipos de Seção*:
+  - /Lista de Itens/ (=items=): Links com ícone, rótulo, URL de destino e função condicional de visibilidade (=visible(user)=).
+  - /Conteúdo Livre/ (=render=): Permite renderizar árvores hierárquicas personalizadas de domínio.
+- *Seções Estruturais do Shell*:
+  - /Conta/: Acesso rápido à gestão de perfil, alteração de senha e encerramento de sessão.
+  - /Configurações/: Acesso aos serviços REST e painel de privacidade.
+  - Podem ser ativadas/desativadas individualmente via =drawer.shellSections: { conta, config }=.
+
+** Rodapé (=<app-footer>=)
+- *Indicador de Conexão (=<connection-status>=)*: Monitora o estado de conectividade (Online/Offline) e o tipo de rede usando a Network Information API.
+- *Relógio em Tempo Real (=<app-clock>=)*: Mostra dia da semana, data e hora com atualização a cada segundo.
+- *Versão do Aplicativo (=<app-version>=)*: Exibe a versão definida no =package.json= via constante =__APP_VERSION__=.
+- *Slot para Itens Customizados*: Permite inclusão de informações de copyright, links de termos ou indicadores de status via =footerItems()=.
+
+** Atualizações de Versão PWA (Toast)
+- Alerta flutuante não intrusivo ("Uma nova versão está disponível") com botão "Atualizar".
+- O usuário decide quando recarregar, evitando perda de estado ou troca de código em pleno uso.
+- Verificação periódica e recarga automática da checagem em eventos de =visibilitychange=.
+
+---
+
+* Sistema de Roteamento SPA (Hash Router)
+
+O arquivo =src/router.js= provê um roteador leve baseado em hash (=location.hash=), ideal para hospedagem puramente estática (como GitHub Pages) sem necessidade de reescrita de URL no servidor web.
+
+** Casamento de Rotas com =pattern()=
+- Segmentos exatos: =pattern('conta/entrar')=
+- Rota raiz: =pattern('')=
+- Parâmetros nomeados: =pattern('livro/:id')= extrai ={ id: '...' }=
+- Parâmetro curinga rest: =pattern('documento/*caminho')= captura múltiplos segmentos encadeados
+
+** Resolução e Precedência
+1. *Rotas do App*: Avaliadas em primeiro lugar, na ordem definida pelo consumidor.
+2. *Rotas Estruturais do Shell*: Avaliadas em seguida:
+   - =#/= -> Home
+   - =#/conta/entrar= -> Login
+   - =#/conta/cadastro= -> Cadastro
+   - =#/conta/esqueci-senha= -> Solicitação de redefinição de senha
+   - =#/conta/redefinir-senha?token=...= -> Definição de nova senha
+   - =#/conta/alterar-senha= -> Troca de senha autenticada
+   - =#/conta= -> Perfil do usuário logado
+   - =#/config/backend/servicos-rest= -> Diagnóstico e URLs de endpoints REST
+   - =#/config/privacidade= -> Gestão de consentimento de telemetria
+3. *Tratamento de Erros e 404*: Se nenhuma rota casar, o router ativa o estado =NOT_FOUND= exibindo o componente =<not-found-view>= (nunca cai silenciosamente na Home).
+4. *Interceptação de Callback de Autenticação*: Detecta e neutraliza hashes de provedores externos como Supabase (=#access_token=...= ou =#type=recovery=), direcionando automaticamente para a tela de conta ou redefinição de senha sem expor tokens sensíveis.
+
+** Utilitários de Navegação
+- =href(path, query)=: Constrói URIs de hash formatadas e codificadas.
+- =navigate(path, query)=: Altera programaticamente o hash da janela.
+- Funções de atalho: =navigateHome()=, =navigateToLogin()=, =navigateToSignup()=, =navigateToAccount()=, =navigateToConfigPrivacy()=, etc.
+
+---
+
+* Inicialização e Configuração Declarativa (=createAppShell=)
+
+O ponto de entrada principal do shell é a função =createAppShell(config)= em =src/create-app-shell.js=.
+
+** Contrato de Configuração
+
+#+begin_src js
+import { createAppShell, pattern } from 'fzl-fund-appshell--lit'
+import { html } from 'lit'
+
+createAppShell({
+  mount: '#app',                      // Seletor CSS ou Elemento container DOM (obrigatório)
+  title: 'Meu Aplicativo',            // Nome da aplicação no cabeçalho (obrigatório)
+  home: () => html`<home-view></home-view>`, // Renderizador da tela inicial (obrigatório)
+
+  routes: [                           // Rotas personalizadas da aplicação (opcional)
+    {
+      name: 'detalhe',
+      match: pattern('item/:id'),
+      render: ({ params, query }) => html`<item-view .id=${params.id}></item-view>`
+    }
+  ],
+
+  drawer: {                           // Configuração do menu lateral (opcional)
+    sections: [
+      {
+        id: 'principal',
+        label: 'Navegação',
+        expanded: true,
+        items: [
+          { label: 'Relatórios', icon: 'analytics', href: '#/relatorios' },
+          { label: 'Admin', icon: 'shield', href: '#/admin', visible: (user) => user?.isAdmin }
+        ]
+      }
+    ],
+    shellSections: {
+      conta: true,                    // Exibe menu Conta (default: true)
+      config: true                    // Exibe menu Config (default: true)
+    }
+  },
+
+  headerActions: () => html`<busca-global></busca-global>`, // Widget no topo direito (opcional)
+  footerItems: () => html`<span>(c) 2026 Minha Empresa</span>`, // Widget no rodapé (opcional)
+
+  analytics: {                        // Telemetria GA4 (opcional)
+    provider: 'ga4',
+    id: 'G-XXXXXXXXXX',
+    requireConsent: true,             // Exige aceite prévio (padrão seguro LGPD)
+    privacyUrl: 'https://exemplo.com/privacidade'
+  },
+
+  auth: meuProvedorDeAuth             // Provedor customizado de autenticação (opcional)
+})
+#+end_src
+
+** Validação Antecipada (=validateConfig=)
+Garante consistência antes da montagem no DOM, emitindo erros descritivos para:
+- Ausência de campos obrigatórios (=mount=, =title=, =home=).
+- Nomes de rotas ou IDs de seção duplicados ou inválidos.
+- Seções do drawer sem =items= nem =render= (ou com ambos).
+- IDs de Measurement do GA4 com padrão inválido.
+- Provedores de autenticação fora da especificação mínima.
+
+---
+
+* Gestão de Autenticação e Usuários
+
+A autenticação é construída sobre o padrão de *Fachada com Provedores Plugáveis*. A interface gráfica (=<auth-view>=, =<user-status>=) nunca acessa APIs de backend diretamente, consumindo apenas a API do =authService=.
+
+** Contrato do Provedor de Autenticação
+O aplicativo consumidor pode injetar seu próprio provedor (ex.: Supabase, Firebase, Keycloak, REST customizado) satisfazendo a seguinte interface:
+
+| Método / Propriedade                   | Tipo       | Descrição                                                                 |
+|----------------------------------------+------------+---------------------------------------------------------------------------|
+| =signIn({ email, password })=          | Obrigatório| Autentica credenciais e devolve objeto de usuário ={ id, name, email }=. |
+| =signOut()=                            | Obrigatório| Encerra a sessão ativa.                                                   |
+| =signUp({ name, email, password })=    | Opcional   | Registra uma nova conta.                                                  |
+| =requestPasswordReset({ email, redirectTo })= | Opcional | Inicia fluxo de recuperação de senha por e-mail.                          |
+| =resetPassword({ token, password })=   | Opcional   | Grava a nova senha usando o token recebido.                               |
+| =changePassword({ user, currentPassword, newPassword })= | Opcional | Troca de senha para usuário já autenticado.               |
+| =init({ setUser })=                    | Opcional   | Inicializa verificação de sessão e escuta mudanças em segundo plano.     |
+| =passwordMinLength=                    | Opcional   | Tamanho mínimo exigido para senhas (padrão: 6).                            |
+
+** Capacidades Dinâmicas da UI (=supports=)
+A interface se adapta aos recursos suportados pelo provedor:
+- Se o provedor não implementar =signUp=, os botões e links de "Criar conta" são ocultados.
+- Se não houver =requestPasswordReset=, a opção "Esqueci minha senha" não é exibida.
+
+** Provedor Local Padrão (=localProvider=)
+Incluído para desenvolvimento e demonstração:
+- Armazenamento em =localStorage= sob o prefixo da aplicação.
+- Hash de senha seguro com salt aleatório e =SHA-256= via Web Crypto API (=crypto.subtle=).
+- Tokens de recuperação com validade de 30 minutos e uso único.
+- Isolamento por aplicação.
+
+** Vistas de Autenticação (=<auth-view>=)
+Subcomponentes para todas as etapas do ciclo de vida:
+- =signin=: Formulário com validação de formato e tratamento de erros.
+- =signup=: Cadastro com confirmação de senha e tamanho mínimo dinâmico.
+- =forgot=: Solicitação de link de redefinição de senha.
+- =reset=: Cadastro da nova senha após validação do token.
+- =change=: Formulário de troca de senha exigindo a senha atual.
+- =profile=: Exibição dos dados da conta atual e data de criação.
+
+---
+
+* Sistema de Notificações do Usuário
+
+O serviço =notificationService= e o componente =<user-notifications>= gerenciam mensagens destinadas ao usuário logado.
+
+** Recursos de Notificação
+- *Ícone com Badge*: Sino no cabeçalho exibindo contador de notificações não lidas.
+- *Painel Popover*: Lista de notificações com título, corpo e marcação de status (lida/não lida).
+- *Ações em Lote e Individuais*: "Marcar como lida" por item e botão "Marcar todas como lidas".
+- *Isolamento e Persistência*: Cada usuário tem sua própria lista vinculada ao seu ID no =localStorage=.
+- *Sincronização entre Abas*: Ouvinte de evento =storage= atualiza a contagem instantaneamente se o usuário ler uma notificação em outra aba.
+- *Gatilho de Boas-Vindas*: Ao cadastrar nova conta, gera automaticamente uma notificação de boas-vindas.
+
+---
+
+* Telemetria e Analytics (Google Analytics 4)
+
+O serviço =analyticsService= em =src/services/analytics-service.js= oferece medição de tráfego de ponta a ponta sem poluir o =index.html=.
+
+** Características do Analytics
+- *Carregamento Dinâmico em Runtime*: O script do =gtag.js= é baixado sob demanda apenas quando ativado e consentido.
+- *Compatibilidade Real com Hash Router*:
+  - O GA4 tradicional depende de History API e perde navegações de hash.
+  - O appshell desativa o envio padrão (=send_page_view: false=) e despacha eventos manuais de =page_view= em cada mudança resolvida pelo router.
+- *Agrupamento Semântico*: Envia o parâmetro =route_name= (ex.: ='livro'=) além de =page_location=, permitindo relatórios agregados por tela em vez de URLs fragmentadas por IDs dinâmicos.
+- *Sanitização de Privacidade*: Higieniza URLs antes do envio, removendo parâmetros sensíveis de query e hash (como =access_token=, =refresh_token=, =token=, =code=, =password=).
+- *Isolamento de Cookies*: Suporte a =cookiePrefix= para evitar colisão do cookie =_ga= entre diferentes aplicações na mesma origem.
+- *Eventos Customizados*: Função =track(eventName, params)= exportada publicamente para rastreamento de ações do domínio.
+
+---
+
+* Conformidade com Privacidade e LGPD (Consent Mode v2)
+
+Em conformidade com a LGPD e o Google Consent Mode v2, o módulo =consentService= gerencia a concessão e revogação de permissões de telemetria.
+
+** Recursos de Privacidade
+- *Padrão Seguro (=requireConsent: true=)*: Enquanto o usuário não responder ao banner, o =gtag.js= não é baixado e nenhum cookie é gravado (Modo Básico).
+- *Banner de Consentimento (=<consent-banner>=)*:
+  - Posicionado de forma acessível e não intrusiva acima do rodapé.
+  - Botões "Recusar" e "Aceitar" com a mesma hierarquia visual (sem padrões escuros/dark patterns).
+  - Link configurável para a política de privacidade (=privacyUrl=).
+- *Gravação e Revogação Imediata*:
+  - Ao aceitar, envia =consent default= e processa o =page_view= inicial pendente.
+  - Ao revogar no painel de configurações (=#/config/privacidade=), dispara =consent update= como negado e remove os cookies =_ga*= da aplicação.
+
+---
+
+* Recursos PWA e Modo Offline
+
+** Service Worker e Caching (Workbox)
+- Gerenciado via =vite-plugin-pwa= com estratégia =registerType: 'prompt'=.
+- Precacheamento dos assets essenciais: JavaScript, CSS, HTML, Webmanifest, SVG e fontes WOFF2.
+- Operação 100% offline garantida após o primeiro carregamento.
+
+** Fontes e Ícones Autohospedados
+- Ícones do *Material Symbols Outlined* embutidos localmente via pacote =@material-symbols/font-400=.
+- Zero dependência externa do Google Fonts em runtime.
+
+** Gerador de Ícones PWA (=appshell-generate-icons=)
+- Script utilitário em =scripts/generate-icons.mjs= (usando a biblioteca =sharp=).
+- Gera automaticamente os 11 tamanhos necessários de ícones PWA (48px a 512px, incluindo versão maskable) a partir de um único =favicon.svg=.
+- Executável como comando de linha: =npx appshell-generate-icons --svg ./public/favicon.svg --out ./public/icons=.
+
+---
+
+* Design System e Temas (Material Design 3)
+
+- *Base de Componentes*: Material Web oficial (botões, listas, ícones, acordeões, campos de texto, switches).
+- *Folha de Estilos Centralizada (=src/styles/theme.css=)*:
+  - Variáveis de cores semânticas Material 3: =--md-sys-color-primary=, =--md-sys-color-surface=, =--md-sys-color-outline=, etc.
+  - Suporte completo a tema Claro (=light=) e Escuro (=dark=).
+  - Adaptação automática às preferências do sistema operacional via =prefers-color-scheme=.
+
+---
+
+* Isolamento de Storage Multi-App
+
+Para permitir que múltiplas aplicações derivadas rodem na mesma origem (como =usuario.github.io/app1= e =usuario.github.io/app2=) sem compartilhar dados indevidamente no =localStorage=:
+
+- *Módulo =storage-keys.js=*: Fornece =storageKey(sufixo)=.
+- *Injeção em Build*: A constante =__APP_STORAGE_PREFIX__= é injetada automaticamente pelo preset do Vite com base no nome do =package.json= da aplicação consumidora.
+- Chaves geradas assumem o padrão: =<prefixo-do-app>:<categoria>:<nome>=.
+
+---
+
+* Suporte a Serviços e Endpoints REST
+
+- *Serviço Declarativo (=rest-config-service.js=)*: Lê URLs e parâmetros de backend a partir de variáveis de ambiente (=VITE_REST_SERVICES_BASE_PATH=, etc.).
+- *Tela de Configurações (=<config-rest-services-view>=)*: Rota =#/config/backend/servicos-rest= permite verificar o status dos endpoints configurados e validar conectividade.
+
+---
+
+* Preset de Integração Vite (=fzl-fund-appshell--lit/vite=)
+
+O arquivo =vite/preset.js= simplifica o =vite.config.js= de qualquer aplicação consumidora:
+
+#+begin_src js
+import { defineConfig, mergeConfig } from 'vite'
+import { appshellConfig } from 'fzl-fund-appshell--lit/vite'
+
+export default defineConfig(
+  mergeConfig(
+    appshellConfig({
+      base: '/meu-app/',
+      manifest: {
+        name: 'Meu Aplicativo Completo',
+        short_name: 'MeuApp',
+        theme_color: '#1e88e5'
+      }
+    }),
+    {
+      // Customizações extras específicas do app consumidor
+    }
+  )
+)
+#+end_src
+
+** Benefícios Fornecidos pelo Preset
+- Injeção de =__APP_VERSION__= e =__APP_STORAGE_PREFIX__=.
+- Deduplicação mandatória de =lit= e =@material/web= no bundle para evitar o erro "CustomElement has already been defined".
+- Configuração do plugin PWA e manifest pré-preenchido.
+
+---
+
+* Scripts e Ferramentas CLI Disponíveis
+
+| Script / Comando | Binário Package.json | Finalidade |
+|------------------+----------------------+------------|
+| =scripts/generate-icons.mjs= | =appshell-generate-icons= | Converte um SVG de entrada em toda a grade de ícones PNG para PWA. |
+| =scripts/set-ga4-variable.sh= | =appshell-set-ga4-variable= | Configura interativamente a variável =VITE_GA4_MEASUREMENT_ID= no GitHub Actions. |
+| =scripts/githubactions-env-var--list-variables.sh= | =appshell-list-gh-variables= | Lista variáveis e segredos configurados no repositório GitHub. |
+
+---
+
+* Resumo dos Arquivos e Estrutura do Shell
+
+#+begin_src text
+src/
+├── index.js                     # Ponto de exportação da API pública do pacote
+├── create-app-shell.js          # Lógica de validação e montagem do shell
+├── router.js                    # Hash router SPA genérico
+├── storage-keys.js              # Gerenciador de prefixos de storage isolados
+├── styles/
+│   └── theme.css                # Tokens de design Material 3 (claro/escuro)
+├── services/
+│   ├── analytics-service.js     # Integração GA4 e sanitização de dados
+│   ├── auth-service.js          # Fachada de autenticação e provedor local
+│   ├── consent-service.js       # Controle de consentimento LGPD
+│   ├── notification-service.js  # Central de notificações por usuário
+│   └── rest-config-service.js   # Leitura de variáveis de serviços REST
+└── webcomponents/
+    ├── app-shell.js             # Casca principal (layout, drawer, slots, router hook)
+    ├── app-header.js            # Top bar fixa com título, ações e user status
+    ├── app-footer.js            # Rodapé fixo com status, relógio e versão
+    ├── app-clock.js             # Relógio em tempo real
+    ├── app-version.js           # Exibição de versão do app
+    ├── connection-status.js     # Monitor de status de rede
+    ├── user-status.js           # Avatar e menu de login/conta
+    ├── user-notifications.js    # Sino e menu de notificações
+    ├── nav-accordion.js         # Seções sanfonadas do drawer
+    ├── auth-view.js             # Telas de login, cadastro, esqueci e redefinir senha
+    ├── consent-banner.js        # Banner de consentimento LGPD
+    ├── config-privacy-view.js   # Painel de preferências de privacidade
+    ├── config-rest-services-view.js # Painel de status dos serviços REST
+    ├── not-found-view.js        # Página 404
+    └── md-imports.js            # Registro consolidado dos componentes Material Web
+#+end_src
