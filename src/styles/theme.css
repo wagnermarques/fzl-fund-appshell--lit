@@ -6,8 +6,24 @@
    nunca do shell. */
 @import '@material-symbols/font-400/outlined.css';
 
-/* Material 3 color tokens — generated from a seed color (#6750a4).
-   Replace with your own palette from https://m3.material.io/theme-builder if desired. */
+/* Temas — tokens de cor do Material 3 a partir da semente #6750a4.
+
+   Todos os papéis de cor que os componentes do @material/web leem estão
+   definidos em todos os temas: um papel ausente cai no valor embutido do
+   componente, que é sempre o do tema *claro*, e aparece como uma mancha
+   clara no meio do tema escuro.
+
+   - claro/escuro: os valores de sempre, completados com os papéis que
+     faltavam (gerados pelo @material/material-color-utilities, esquema
+     tonal-spot, contraste padrão);
+   - alto contraste claro/escuro: o mesmo gerador com contrastLevel 1.0.
+     Conferidos pela fórmula da WCAG 2.x: todo par texto/fundo >= 7:1
+     (1.4.6, AAA) e contornos >= 3:1 (1.4.11). Ver
+     documentation/acessibilidade.org.
+
+   Quem escolhe o tema é o atributo data-theme no <html>
+   (accessibility-service.js). Sem o atributo ("sistema"), seguem-se
+   prefers-color-scheme e prefers-contrast do sistema operacional. */
 :root {
   --md-sys-color-primary: #6750a4;
   --md-sys-color-on-primary: #ffffff;
@@ -15,21 +31,37 @@
   --md-sys-color-on-primary-container: #21005d;
   --md-sys-color-secondary: #625b71;
   --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e8def8;
+  --md-sys-color-on-secondary-container: #4a4458;
+  --md-sys-color-tertiary: #7e5260;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd9e3;
+  --md-sys-color-on-tertiary-container: #633b48;
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #93000a;
+  --md-sys-color-background: #fffbfe;
+  --md-sys-color-on-background: #1c1b1f;
   --md-sys-color-surface: #fffbfe;
   --md-sys-color-on-surface: #1c1b1f;
   --md-sys-color-surface-variant: #e7e0ec;
   --md-sys-color-on-surface-variant: #49454f;
   --md-sys-color-outline: #79747e;
-  --md-sys-color-background: #fffbfe;
-  --md-sys-color-on-background: #1c1b1f;
-  --md-sys-color-error: #b3261e;
-  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-outline-variant: #cac4cf;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
   --md-sys-color-inverse-surface: #313033;
   --md-sys-color-inverse-on-surface: #f4eff4;
   --md-sys-color-inverse-primary: #d0bcff;
-
-  --md-ref-typeface-brand: system-ui, sans-serif;
-  --md-ref-typeface-plain: system-ui, sans-serif;
+  --md-sys-color-surface-dim: #ded8e0;
+  --md-sys-color-surface-bright: #fdf7ff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f8f2fa;
+  --md-sys-color-surface-container: #f2ecf4;
+  --md-sys-color-surface-container-high: #ece6ee;
+  --md-sys-color-surface-container-highest: #e6e0e9;
+  --md-sys-color-surface-tint: #65558f;
 
   color-scheme: light;
 }
@@ -41,43 +73,294 @@
   --md-sys-color-on-primary-container: #eaddff;
   --md-sys-color-secondary: #ccc2dc;
   --md-sys-color-on-secondary: #332d41;
+  --md-sys-color-secondary-container: #4a4458;
+  --md-sys-color-on-secondary-container: #e8def8;
+  --md-sys-color-tertiary: #efb8c8;
+  --md-sys-color-on-tertiary: #4a2532;
+  --md-sys-color-tertiary-container: #633b48;
+  --md-sys-color-on-tertiary-container: #ffd9e3;
+  --md-sys-color-error: #f2b8b5;
+  --md-sys-color-on-error: #601410;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-background: #1c1b1f;
+  --md-sys-color-on-background: #e6e1e5;
   --md-sys-color-surface: #1c1b1f;
   --md-sys-color-on-surface: #e6e1e5;
   --md-sys-color-surface-variant: #49454f;
   --md-sys-color-on-surface-variant: #cac4d0;
   --md-sys-color-outline: #938f99;
-  --md-sys-color-background: #1c1b1f;
-  --md-sys-color-on-background: #e6e1e5;
-  --md-sys-color-error: #f2b8b5;
-  --md-sys-color-on-error: #601410;
+  --md-sys-color-outline-variant: #49454e;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
   --md-sys-color-inverse-surface: #e6e1e5;
   --md-sys-color-inverse-on-surface: #313033;
   --md-sys-color-inverse-primary: #6750a4;
+  --md-sys-color-surface-dim: #141218;
+  --md-sys-color-surface-bright: #3b383e;
+  --md-sys-color-surface-container-lowest: #0f0d13;
+  --md-sys-color-surface-container-low: #1d1b20;
+  --md-sys-color-surface-container: #211f24;
+  --md-sys-color-surface-container-high: #2b292f;
+  --md-sys-color-surface-container-highest: #36343a;
+  --md-sys-color-surface-tint: #cfbdfe;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='high-contrast-light'] {
+  --md-sys-color-primary: #312259;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #4f4078;
+  --md-sys-color-on-primary-container: #ffffff;
+  --md-sys-color-secondary: #2f293c;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #4c465b;
+  --md-sys-color-on-secondary-container: #ffffff;
+  --md-sys-color-tertiary: #45212e;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #663d4b;
+  --md-sys-color-on-tertiary-container: #ffffff;
+  --md-sys-color-error: #600004;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #98000a;
+  --md-sys-color-on-error-container: #ffffff;
+  --md-sys-color-background: #fdf7ff;
+  --md-sys-color-on-background: #1d1b20;
+  --md-sys-color-surface: #fdf7ff;
+  --md-sys-color-on-surface: #000000;
+  --md-sys-color-surface-variant: #e7e0eb;
+  --md-sys-color-on-surface-variant: #000000;
+  --md-sys-color-outline: #2e2b33;
+  --md-sys-color-outline-variant: #4b4851;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #322f35;
+  --md-sys-color-inverse-on-surface: #ffffff;
+  --md-sys-color-inverse-primary: #cfbdfe;
+  --md-sys-color-surface-dim: #bcb7bf;
+  --md-sys-color-surface-bright: #fdf7ff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f5eff7;
+  --md-sys-color-surface-container: #e6e0e9;
+  --md-sys-color-surface-container-high: #d8d2da;
+  --md-sys-color-surface-container-highest: #cac5cc;
+  --md-sys-color-surface-tint: #65558f;
+
+  color-scheme: light;
+}
+
+:root[data-theme='high-contrast-dark'] {
+  --md-sys-color-primary: #f5edff;
+  --md-sys-color-on-primary: #000000;
+  --md-sys-color-primary-container: #cbb9fa;
+  --md-sys-color-on-primary-container: #0f0033;
+  --md-sys-color-secondary: #f5edff;
+  --md-sys-color-on-secondary: #000000;
+  --md-sys-color-secondary-container: #c8bfd8;
+  --md-sys-color-on-secondary-container: #0d081a;
+  --md-sys-color-tertiary: #ffebef;
+  --md-sys-color-on-tertiary: #000000;
+  --md-sys-color-tertiary-container: #ebb4c4;
+  --md-sys-color-on-tertiary-container: #1d020d;
+  --md-sys-color-error: #ffece9;
+  --md-sys-color-on-error: #000000;
+  --md-sys-color-error-container: #ffaea4;
+  --md-sys-color-on-error-container: #220001;
+  --md-sys-color-background: #141218;
+  --md-sys-color-on-background: #e6e0e9;
+  --md-sys-color-surface: #141218;
+  --md-sys-color-on-surface: #ffffff;
+  --md-sys-color-surface-variant: #49454e;
+  --md-sys-color-on-surface-variant: #ffffff;
+  --md-sys-color-outline: #f4eef9;
+  --md-sys-color-outline-variant: #c6c0cb;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #e6e0e9;
+  --md-sys-color-inverse-on-surface: #000000;
+  --md-sys-color-inverse-primary: #4e3f77;
+  --md-sys-color-surface-dim: #141218;
+  --md-sys-color-surface-bright: #524f55;
+  --md-sys-color-surface-container-lowest: #000000;
+  --md-sys-color-surface-container-low: #211f24;
+  --md-sys-color-surface-container: #322f35;
+  --md-sys-color-surface-container-high: #3d3a41;
+  --md-sys-color-surface-container-highest: #48464c;
+  --md-sys-color-surface-tint: #cfbdfe;
 
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']):not([data-theme='dark']) {
+  :root:not([data-theme]) {
     --md-sys-color-primary: #d0bcff;
     --md-sys-color-on-primary: #381e72;
     --md-sys-color-primary-container: #4f378b;
     --md-sys-color-on-primary-container: #eaddff;
     --md-sys-color-secondary: #ccc2dc;
     --md-sys-color-on-secondary: #332d41;
+    --md-sys-color-secondary-container: #4a4458;
+    --md-sys-color-on-secondary-container: #e8def8;
+    --md-sys-color-tertiary: #efb8c8;
+    --md-sys-color-on-tertiary: #4a2532;
+    --md-sys-color-tertiary-container: #633b48;
+    --md-sys-color-on-tertiary-container: #ffd9e3;
+    --md-sys-color-error: #f2b8b5;
+    --md-sys-color-on-error: #601410;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffdad6;
+    --md-sys-color-background: #1c1b1f;
+    --md-sys-color-on-background: #e6e1e5;
     --md-sys-color-surface: #1c1b1f;
     --md-sys-color-on-surface: #e6e1e5;
     --md-sys-color-surface-variant: #49454f;
     --md-sys-color-on-surface-variant: #cac4d0;
     --md-sys-color-outline: #938f99;
-    --md-sys-color-background: #1c1b1f;
-    --md-sys-color-on-background: #e6e1e5;
-    --md-sys-color-error: #f2b8b5;
-    --md-sys-color-on-error: #601410;
+    --md-sys-color-outline-variant: #49454e;
+    --md-sys-color-shadow: #000000;
+    --md-sys-color-scrim: #000000;
     --md-sys-color-inverse-surface: #e6e1e5;
     --md-sys-color-inverse-on-surface: #313033;
     --md-sys-color-inverse-primary: #6750a4;
+    --md-sys-color-surface-dim: #141218;
+    --md-sys-color-surface-bright: #3b383e;
+    --md-sys-color-surface-container-lowest: #0f0d13;
+    --md-sys-color-surface-container-low: #1d1b20;
+    --md-sys-color-surface-container: #211f24;
+    --md-sys-color-surface-container-high: #2b292f;
+    --md-sys-color-surface-container-highest: #36343a;
+    --md-sys-color-surface-tint: #cfbdfe;
+
     color-scheme: dark;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root:not([data-theme]) {
+    --md-sys-color-primary: #312259;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-container: #4f4078;
+    --md-sys-color-on-primary-container: #ffffff;
+    --md-sys-color-secondary: #2f293c;
+    --md-sys-color-on-secondary: #ffffff;
+    --md-sys-color-secondary-container: #4c465b;
+    --md-sys-color-on-secondary-container: #ffffff;
+    --md-sys-color-tertiary: #45212e;
+    --md-sys-color-on-tertiary: #ffffff;
+    --md-sys-color-tertiary-container: #663d4b;
+    --md-sys-color-on-tertiary-container: #ffffff;
+    --md-sys-color-error: #600004;
+    --md-sys-color-on-error: #ffffff;
+    --md-sys-color-error-container: #98000a;
+    --md-sys-color-on-error-container: #ffffff;
+    --md-sys-color-background: #fdf7ff;
+    --md-sys-color-on-background: #1d1b20;
+    --md-sys-color-surface: #fdf7ff;
+    --md-sys-color-on-surface: #000000;
+    --md-sys-color-surface-variant: #e7e0eb;
+    --md-sys-color-on-surface-variant: #000000;
+    --md-sys-color-outline: #2e2b33;
+    --md-sys-color-outline-variant: #4b4851;
+    --md-sys-color-shadow: #000000;
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #322f35;
+    --md-sys-color-inverse-on-surface: #ffffff;
+    --md-sys-color-inverse-primary: #cfbdfe;
+    --md-sys-color-surface-dim: #bcb7bf;
+    --md-sys-color-surface-bright: #fdf7ff;
+    --md-sys-color-surface-container-lowest: #ffffff;
+    --md-sys-color-surface-container-low: #f5eff7;
+    --md-sys-color-surface-container: #e6e0e9;
+    --md-sys-color-surface-container-high: #d8d2da;
+    --md-sys-color-surface-container-highest: #cac5cc;
+    --md-sys-color-surface-tint: #65558f;
+
+    color-scheme: light;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --md-sys-color-primary: #f5edff;
+    --md-sys-color-on-primary: #000000;
+    --md-sys-color-primary-container: #cbb9fa;
+    --md-sys-color-on-primary-container: #0f0033;
+    --md-sys-color-secondary: #f5edff;
+    --md-sys-color-on-secondary: #000000;
+    --md-sys-color-secondary-container: #c8bfd8;
+    --md-sys-color-on-secondary-container: #0d081a;
+    --md-sys-color-tertiary: #ffebef;
+    --md-sys-color-on-tertiary: #000000;
+    --md-sys-color-tertiary-container: #ebb4c4;
+    --md-sys-color-on-tertiary-container: #1d020d;
+    --md-sys-color-error: #ffece9;
+    --md-sys-color-on-error: #000000;
+    --md-sys-color-error-container: #ffaea4;
+    --md-sys-color-on-error-container: #220001;
+    --md-sys-color-background: #141218;
+    --md-sys-color-on-background: #e6e0e9;
+    --md-sys-color-surface: #141218;
+    --md-sys-color-on-surface: #ffffff;
+    --md-sys-color-surface-variant: #49454e;
+    --md-sys-color-on-surface-variant: #ffffff;
+    --md-sys-color-outline: #f4eef9;
+    --md-sys-color-outline-variant: #c6c0cb;
+    --md-sys-color-shadow: #000000;
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #e6e0e9;
+    --md-sys-color-inverse-on-surface: #000000;
+    --md-sys-color-inverse-primary: #4e3f77;
+    --md-sys-color-surface-dim: #141218;
+    --md-sys-color-surface-bright: #524f55;
+    --md-sys-color-surface-container-lowest: #000000;
+    --md-sys-color-surface-container-low: #211f24;
+    --md-sys-color-surface-container: #322f35;
+    --md-sys-color-surface-container-high: #3d3a41;
+    --md-sys-color-surface-container-highest: #48464c;
+    --md-sys-color-surface-tint: #cfbdfe;
+
+    color-scheme: dark;
+  }
+}
+
+/* Fontes — data-font no <html>. Os @font-face vêm de
+   'virtual:appshell-fonts' (só as fontes que o app habilitou; ver
+   vite/preset.js). Fallback sempre para a fonte do sistema. */
+:root {
+  --md-ref-typeface-brand: system-ui, sans-serif;
+  --md-ref-typeface-plain: system-ui, sans-serif;
+}
+
+:root[data-font='atkinson'] {
+  --md-ref-typeface-brand: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --md-ref-typeface-plain: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+}
+
+:root[data-font='opendyslexic'] {
+  --md-ref-typeface-brand: 'OpenDyslexic', system-ui, sans-serif;
+  --md-ref-typeface-plain: 'OpenDyslexic', system-ui, sans-serif;
+}
+
+/* Tamanho do texto: --app-text-scale (1 a 2) multiplica o font-size da
+   raiz, e com ele todo tamanho em rem — do appshell e dos componentes do
+   Material. Parte de 100%, então o tamanho que o usuário configurou no
+   navegador continua valendo por baixo (WCAG 1.4.4). */
+html {
+  font-size: calc(var(--app-text-scale, 1) * 100%);
+}
+
+/* Movimento reduzido (WCAG 2.3.3): encurta transições e animações —
+   drawer, acordeões, ripple — sem desligá-las, para os eventos de fim de
+   transição dos componentes continuarem disparando. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

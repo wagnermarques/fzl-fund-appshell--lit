@@ -25,6 +25,7 @@
  *   #/conta/alterar-senha               -> trocar a senha (logado)
  *   #/config/backend/servicos-rest      -> REST services base path config
  *   #/config/privacidade                -> consentimento do analytics
+ *   #/config/acessibilidade             -> tema, fonte e tamanho do texto
  */
 
 export const NOT_FOUND = 'not-found'
@@ -63,6 +64,7 @@ export const shellRoutes = [
   { name: 'conta', match: pattern('conta') },
   { name: 'config-backend-servicos-rest', match: pattern('config/backend/servicos-rest') },
   { name: 'config-privacidade', match: pattern('config/privacidade') },
+  { name: 'config-acessibilidade', match: pattern('config/acessibilidade') },
 ]
 
 // Redirecionamentos de confirmação de e-mail/magic link/reset de senha de
@@ -173,4 +175,8 @@ export function navigateToConfigRestServices() {
 
 export function navigateToConfigPrivacy() {
   navigate('config/privacidade')
+}
+
+export function navigateToConfigAccessibility() {
+  navigate('config/acessibilidade')
 }

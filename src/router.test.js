@@ -80,6 +80,7 @@ describe('resolveRoute', () => {
     expect(resolveRoute('#/conta/alterar-senha').name).toBe('conta-alterar-senha')
     expect(resolveRoute('#/config/backend/servicos-rest').name).toBe('config-backend-servicos-rest')
     expect(resolveRoute('#/config/privacidade').name).toBe('config-privacidade')
+    expect(resolveRoute('#/config/acessibilidade').name).toBe('config-acessibilidade')
   })
 
   it('devolve not-found em vez de cair na home', () => {

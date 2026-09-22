@@ -1,0 +1,295 @@
+#+TITLE: Acessibilidade — normas, fontes tipográficas e referências
+#+LANGUAGE: pt-BR
+#+STARTUP: content
+
+Instrução de referência para quem desenvolve o appshell e os apps que o
+usam (Ler-gislação e os demais). Diz *qual norma vale para quê*, *qual nível
+de conformidade adotamos*, *quais critérios tocam o appshell*, *quais fontes
+tipográficas oferecemos e por quê* — e, para cada ponto, *onde consultar a
+fonte original*. Em caso de dúvida, vale sempre o documento original das
+[[*Referências para consulta][referências]], não este resumo.
+
+* Quais normas valem, e com que peso
+
+As normas não são alternativas entre si: se empilham, da obrigação legal até
+a orientação pedagógica.
+
+| Documento                      | Natureza                   | Base técnica | Papel para nós                                                                                                                                                      |
+|--------------------------------+----------------------------+--------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| LBI — Lei 13.146/2015, art. 63 | Lei federal                | —            | Torna a acessibilidade de sites *obrigatória* (órgãos de governo e empresas com sede ou representação no país).                                                     |
+| ABNT NBR 17225:2025            | Norma técnica brasileira   | WCAG 2.2     | A norma brasileira atual para conteúdo e aplicações web; é a que concretiza o art. 63.                                                                              |
+| WCAG 2.2 (W3C)                 | Recomendação internacional | —            | Os critérios de sucesso que de fato implementamos e testamos.                                                                                                       |
+| eMAG 3.1                       | Modelo do governo federal  | WCAG 2.0     | Elementos *padronizados* de sites de governo (atalhos, barra e página de acessibilidade). Mais antigo que a WCAG 2.2: onde divergirem, vale a WCAG 2.2 / NBR 17225. |
+| DUA / UDL (CAST, v3.0)         | Referencial pedagógico     | —            | Orienta *por que* oferecer várias formas de acesso ao mesmo conteúdo. Não é norma técnica e não tem critérios testáveis.                                            |
+
+Regra prática: *implementamos e testamos contra a WCAG 2.2* (que é também o
+conteúdo da NBR 17225) e *acrescentamos os elementos padronizados do eMAG*
+que ainda fazem sentido num app.
+
+* Nível de conformidade adotado
+
+*Meta: WCAG 2.2 nível AA em todo o appshell, mais os critérios AAA onde
+forem aplicáveis* — em especial contraste (1.4.6), tamanho de alvo (2.5.5),
+aparência do foco (2.4.13) e animação por interação (2.3.3).
+
+Não declaramos "conformidade AAA" do app inteiro. A própria WCAG, na seção
+de conformidade, não recomenda exigir AAA como política geral para sites
+inteiros, porque alguns conteúdos não conseguem satisfazer todos os critérios
+AAA. Uma afirmação pública maior do que o que foi verificado é, ela mesma, um
+problema — e para um app de legislação, um risco.
+
+Texto sugerido para a apresentação do app (substitui "rigorosa observância
+às diretrizes da WCAG 2.2 (níveis AA/AAA)"):
+
+#+begin_quote
+O Ler-gislação foi concebido sob os princípios do Desenho Universal para a
+Aprendizagem (DUA) e busca conformidade com a WCAG 2.2 nível AA — base da
+ABNT NBR 17225:2025 —, adotando critérios de nível AAA onde aplicáveis, como
+o contraste reforçado, além dos elementos padronizados do eMAG.
+#+end_quote
+
+* Critérios WCAG 2.2 que tocam o appshell
+
+Não é a lista completa (são 86 critérios na 2.2) — é a lista dos que o
+*appshell* precisa garantir, porque cabeçalho, drawer, rodapé, telas de conta
+e config e as preferências de acessibilidade são dele. O conteúdo de cada
+app (artigos, gráficos) é responsabilidade do app.
+
+** Percepção
+
+| Critério                         | Nível | O que significa aqui                                                                                                              |
+|----------------------------------+-------+-----------------------------------------------------------------------------------------------------------------------------------|
+| 1.4.3 Contraste (mínimo)         | AA    | Texto ≥ 4,5:1; texto grande (≥ 24px, ou ≥ 18,66px em negrito) ≥ 3:1. Em *todos* os temas.                                         |
+| 1.4.6 Contraste (melhorado)      | AAA   | Texto ≥ 7:1 (grande ≥ 4,5:1). Meta dos temas de alto contraste.                                                                   |
+| 1.4.11 Contraste não textual     | AA    | Bordas de campos, ícones, anel de foco ≥ 3:1 contra o fundo.                                                                      |
+| 1.4.4 Redimensionar texto        | AA    | Texto a 200% sem perder conteúdo — daí a escala de 100–200% nas preferências e o fim das alturas fixas em px no cabeçalho/rodapé. |
+| 1.4.10 Refluxo                   | AA    | Utilizável a 320px de largura sem rolagem horizontal (exceto tabelas/gráficos).                                                   |
+| 1.4.12 Espaçamento de texto      | AA    | Nada quebra com altura de linha 1,5, parágrafo 2×, letras 0,12em, palavras 0,16em.                                                |
+| 1.4.13 Conteúdo em foco ou hover | AA    | Tooltips dispensáveis (Esc), "pairáveis" e persistentes.                                                                          |
+| 1.4.8 Apresentação visual        | AAA   | Referência para as preferências de leitura: cores escolhidas pelo usuário, linhas ≤ 80 caracteres, sem justificação.              |
+
+** Operação
+
+| Critério                                         | Nível | O que significa aqui                                                                                  |
+|--------------------------------------------------+-------+-------------------------------------------------------------------------------------------------------|
+| 2.1.1 Teclado / 2.1.2 Sem bloqueio               | A     | Tudo operável por teclado; o drawer prende o foco enquanto aberto, mas *Esc* sempre fecha.            |
+| 2.4.1 Ignorar blocos                             | A     | Link "Ir para o conteúdo" — coincide com o atalho 1 do eMAG.                                          |
+| 2.4.3 Ordem do foco                              | A     | Ao fechar o drawer, o foco volta ao botão de menu.                                                    |
+| 2.4.7 Foco visível                               | AA    | Anel de foco sempre visível, em todos os temas.                                                       |
+| 2.4.11 Foco não encoberto (mínimo) — novo na 2.2 | AA    | Elemento focado nunca totalmente escondido (ex.: pelo banner de consentimento ou pelo player de voz). |
+| 2.4.13 Aparência do foco — novo na 2.2           | AAA   | Anel de foco ≥ 2px, contraste ≥ 3:1 entre focado e não focado.                                        |
+| 2.5.8 Tamanho do alvo (mínimo) — novo na 2.2     | AA    | Alvos de toque ≥ 24×24 px CSS (ou espaçamento equivalente).                                           |
+| 2.5.5 Tamanho do alvo (melhorado)                | AAA   | ≥ 44×44 px — meta para os botões do drawer e do player.                                               |
+| 2.3.3 Animação por interação                     | AAA   | Respeitar =prefers-reduced-motion= (acordeões, drawer, rolagem até o artigo lido).                    |
+
+** Compreensão e robustez
+
+| Critério                                            | Nível | O que significa aqui                                                                          |
+|-----------------------------------------------------+-------+-----------------------------------------------------------------------------------------------|
+| 3.1.1 Idioma da página                              | A     | =<html lang="pt-BR">= — também decide a voz e a hifenização.                                  |
+| 3.2.6 Ajuda consistente — novo na 2.2               | A     | Se houver ajuda/contato, no mesmo lugar em todas as telas.                                    |
+| 3.3.7 Entrada redundante — novo na 2.2              | A     | Não pedir de novo o que o usuário já informou no mesmo fluxo.                                 |
+| 3.3.8 Autenticação acessível (mínimo) — novo na 2.2 | AA    | Login sem teste cognitivo; colar senha e gerenciador de senhas sempre permitidos (auth-view). |
+| 4.1.2 Nome, função, valor                           | A     | Botões só com ícone (menu, player) com nome acessível (=aria-label=).                         |
+| 4.1.3 Mensagens de status                           | AA    | Avisos (nova versão, "lendo artigo 5") anunciados via =role="status"=, sem roubar o foco.     |
+
+Observação: o critério 4.1.1 (Análise) foi *removido* na WCAG 2.2 — não
+aparece mais em relatórios.
+
+* Elementos padronizados do eMAG 3.1
+
+O eMAG é de 2014 e foi pensado para portais, mas estes elementos continuam
+valendo e são familiares a quem usa sites de governo:
+
+- *Atalhos de teclado padronizados* (recomendação 1.5): =1= conteúdo, =2=
+  menu principal, =3= busca — acionados com a tecla modificadora do navegador
+  (Alt, ou Alt+Shift no Firefox). Num app sem busca, o atalho 3 é omitido.
+- *Barra de acessibilidade* (capítulo 4, elementos padronizados): no topo,
+  com os atalhos acima, o acesso ao alto contraste e o link para a página de
+  acessibilidade. No appshell ela pode ser o próprio cabeçalho + o menu
+  Config > Acessibilidade, desde que os atalhos existam.
+- *Página de acessibilidade*: descreve os recursos oferecidos (atalhos,
+  temas, fontes, leitura em voz alta) e como usá-los. Será uma rota do
+  appshell, como Config > Privacidade.
+- *Alto contraste* acessível a partir de qualquer página.
+
+* Fontes tipográficas
+
+As duas fontes são *opções do usuário*, nunca impostas: legibilidade é
+individual, e a fonte padrão continua sendo a do sistema, a menos que o app
+escolha outra em =appshell.config.js=. Ambas são autohospedadas (pacotes
+=@fontsource=), como já fazemos com os Material Symbols: funcionam offline
+no PWA e não dependem do Google Fonts nem de outro domínio.
+
+** Atkinson Hyperlegible Next
+
+- *Origem*: Braille Institute of America. A versão original é de 2019; a
+  /Next/ saiu em fevereiro de 2025, com 7 pesos (antes 2), versão variável e
+  monoespaçada, e suporte a mais de 150 idiomas (antes 27).
+- *Por que*: projetada para *baixa visão*: diferencia ao máximo caracteres
+  que se confundem (I/l/1, 0/O, b/d/p/q), com formas e espaçamentos mais
+  abertos.
+- *Licença*: SIL Open Font License 1.1 — uso livre, inclusive em apps.
+- *Pacote*: =@fontsource/atkinson-hyperlegible-next= (preferir a /Next/ à
+  original: a original tem só 2 pesos, e o Material usa 400/500/700).
+- *Cuidado*: a evidência é sobretudo do próprio projeto de design do Braille
+  Institute; é uma escolha bem fundamentada, não "cientificamente
+  comprovada". Descrever como "projetada para baixa visão", não como
+  "comprovadamente melhor".
+
+** OpenDyslexic
+
+- *Origem*: projeto de código aberto de Abbie Gonzalez; letras com a base
+  "pesada" para reduzir a rotação/espelhamento percebido de letras.
+- *Licença*: SIL Open Font License.
+- *Pacote*: =@fontsource/opendyslexic=.
+- *Evidência — importante*: Wery e Diliberto (2017, /Annals of Dyslexia/)
+  compararam OpenDyslexic com Arial e Times New Roman em estudantes com
+  dislexia e *não encontraram melhora* nem na velocidade nem na precisão de
+  leitura. Pesquisas sobre dislexia apontam que *espaçamento* (entre letras,
+  palavras e linhas) pesa mais do que a fonte em si (ex.: Galliussi et al.,
+  2020, /Annals of Dyslexia/).
+- *Consequência para nós*:
+  1. Oferecemos OpenDyslexic porque há leitores que *preferem* e se sentem
+     mais confortáveis com ela — preferência e conforto também contam
+     (e é esse o espírito do DUA).
+  2. No texto de apresentação, dizer "opção de fonte OpenDyslexic, preferida
+     por parte das pessoas com dislexia" — *não* "facilita a leitura para
+     pessoas com dislexia", que a evidência não sustenta.
+  3. Complementar com o que a evidência sustenta: preferência de
+     *espaçamento de texto* (ver WCAG 1.4.12) e escala de texto, que valem
+     com qualquer fonte.
+
+** Regras de implementação
+
+- Trocar a fonte via =--md-ref-typeface-plain= / =--md-ref-typeface-brand=,
+  sempre com pilha de fallback (=..., system-ui, sans-serif=).
+- Só empacotar e pré-cachear no PWA as fontes que o app habilitou em
+  =appshell.config.js= (o =globPatterns= atual do preset pega todo =*.woff2=).
+- Carregar apenas os pesos usados (400, 500, 700) e o subconjunto =latin=.
+- As fontes têm métricas diferentes (OpenDyslexic é bem mais larga): testar
+  cabeçalho, drawer e botões com cada uma a 200%.
+
+* Alto contraste e temas
+
+- *Meta*: temas de alto contraste com texto ≥ 7:1 (1.4.6, AAA) e
+  componentes/foco ≥ 3:1 (1.4.11). Os temas claro e escuro comuns: ≥ 4,5:1
+  (1.4.3, AA).
+- *Preferências do sistema*: com o tema em "sistema", respeitar
+  =prefers-color-scheme= e =prefers-contrast: more=.
+- *Modo de cores forçadas* (Alto Contraste do Windows): testar com
+  =forced-colors: active=; não esconder informação só em cor de fundo ou
+  sombra, e usar =CanvasText=, =ButtonText= etc. onde for preciso.
+- *Medição*: contraste pela fórmula da WCAG 2.x (luminância relativa). O
+  APCA é proposta para a WCAG 3, ainda rascunho — não serve para declarar
+  conformidade com a 2.2 nem com a NBR 17225.
+- Fotofobia: um tema escuro de alto contraste ajuda, mas evitar branco puro
+  sobre preto puro em grandes blocos de texto (causa /halation/ em parte dos
+  leitores com astigmatismo) — oferecer as duas variantes resolve.
+
+* Leitura em voz alta (Text-to-Speech)
+
+- *Tecnologia*: =speechSynthesis= da Web Speech API. A especificação é um
+  /Community Group Report/ do W3C, não uma Recomendação: o comportamento
+  varia entre navegadores e as vozes dependem do sistema do usuário.
+- *Não é exigência da WCAG*, e *não substitui* leitores de tela. É um recurso
+  de DUA (mais uma forma de acesso ao mesmo conteúdo). O app continua tendo
+  de funcionar com NVDA, Orca, TalkBack e VoiceOver — e o player não pode
+  atrapalhá-los (não falar ao mesmo tempo que o leitor de tela; nada de
+  leitura automática).
+- *Critérios que tocam o player*: 1.4.2 (nunca iniciar áudio sozinho), 2.1.1
+  (controles por teclado), 2.4.11 (o player fixo não pode encobrir o foco),
+  4.1.2 (botões com nome), 4.1.3 (anunciar o artigo em leitura via
+  =role="status"=), 2.3.3 (rolagem até o artigo respeitando movimento reduzido).
+- *Voz*: escolher uma voz =pt-BR= (=lang= do documento), com fallback para
+  qualquer =pt=; se não houver voz em português, avisar em vez de ler com
+  sotaque errado.
+
+* Relação com o DUA (Desenho Universal para a Aprendizagem)
+
+As Diretrizes UDL 3.0 do CAST (2024) organizam-se em três princípios:
+múltiplas formas de *engajamento*, de *representação* e de *ação e
+expressão*. Os recursos deste plano estão sobretudo em *representação*
+(percepção):
+
+- fontes, escala de texto, espaçamento e temas → personalizar a apresentação
+  da informação visual;
+- leitura em voz alta → alternativa auditiva ao texto;
+- preferências que o próprio leitor escolhe e que persistem → engajamento e
+  autonomia.
+
+O DUA justifica *oferecer escolhas*; a WCAG diz *como verificar* que cada
+escolha funciona. Um não substitui o outro.
+
+* Como verificar
+
+1. *Automático* (acha ~30–40% dos problemas): axe-core nos testes, Lighthouse
+   (aba Acessibilidade), extensão WAVE, e o ASES (avaliador do eMAG do
+   governo federal).
+2. *Contraste*: WebAIM Contrast Checker para cada par de tokens de cada tema.
+3. *Teclado*: percorrer tudo só com Tab/Shift+Tab/Enter/Esc/setas; atalhos
+   eMAG 1 e 2.
+4. *Zoom e espaçamento*: 200% de texto e 400% de zoom (= 320px de largura);
+   bookmarklet de espaçamento de texto (1.4.12).
+5. *Leitores de tela*: Orca (Linux), NVDA (Windows), TalkBack (Android),
+   VoiceOver (iOS).
+6. *Pessoas*: nada substitui testar com usuários com baixa visão, dislexia e
+   que usam leitor de tela — o eMAG 3.1 foi feito assim.
+
+* Referências para consulta
+
+** Legislação e normas brasileiras
+- Lei Brasileira de Inclusão (Lei 13.146/2015), art. 63 —
+  https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13146.htm
+- ABNT NBR 17225:2025 — Acessibilidade em conteúdo e aplicações web —
+  Requisitos (apresentação e acesso gratuito, pelo CTA/IFRS) —
+  https://cta.ifrs.edu.br/abnt-nbr-17225-2025-acessibilidade-em-conteudo-e-aplicacoes-web-requisitos/
+- eMAG 3.1 — Modelo de Acessibilidade em Governo Eletrônico —
+  https://emag.governoeletronico.gov.br/
+- Modelo de Acessibilidade no portal Governo Digital —
+  https://www.gov.br/governodigital/pt-br/acessibilidade-e-usuario/acessibilidade-digital/modelo-de-acessibilidade
+
+** WCAG 2.2
+- WCAG 2.2 (original, W3C) — https://www.w3.org/TR/WCAG22/
+- WCAG 2.2 — tradução autorizada pt-BR (Ceweb.br / NIC.br) —
+  https://www.w3c.br/traducoes/wcag/wcag22-pt-BR/
+- Understanding WCAG 2.2 (explicação de cada critério) —
+  https://www.w3.org/WAI/WCAG22/Understanding/
+- How to Meet WCAG 2.2 (referência rápida filtrável) —
+  https://www.w3.org/WAI/WCAG22/quickref/
+- Novidades da WCAG 2.2 — https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/
+
+** Fontes tipográficas
+- Atkinson Hyperlegible — Braille Institute — https://www.brailleinstitute.org/freefont/
+- Anúncio da Atkinson Hyperlegible Next (fev. 2025) —
+  https://www.brailleinstitute.org/about-us/news/braille-institute-launches-enhanced-atkinson-hyperlegible-font-to-make-reading-easier/
+- Atkinson Hyperlegible Next no Google Fonts —
+  https://fonts.google.com/specimen/Atkinson+Hyperlegible+Next
+- OpenDyslexic — https://opendyslexic.org/ (licença: https://opendyslexic.org/license)
+- Wery, J. J.; Diliberto, J. A. (2017). The effect of a specialized dyslexia
+  font, OpenDyslexic, on reading rate and accuracy. /Annals of Dyslexia/,
+  67(2) — https://pubmed.ncbi.nlm.nih.gov/26993270/
+- Galliussi, J. et al. (2020). Inter-letter spacing, inter-word spacing, and
+  font with dyslexia-friendly features: testing text readability in people
+  with and without dyslexia. /Annals of Dyslexia/ —
+  https://link.springer.com/article/10.1007/s11881-020-00194-x
+- Fontsource (pacotes autohospedados) — https://fontsource.org/
+
+** Contraste, temas e movimento
+- Media Queries Level 5 (=prefers-contrast=, =forced-colors=,
+  =prefers-reduced-motion=) — https://www.w3.org/TR/mediaqueries-5/
+- WebAIM Contrast Checker — https://webaim.org/resources/contrastchecker/
+
+** Leitura em voz alta
+- Web Speech API (especificação, W3C Community Group) —
+  https://webaudio.github.io/web-speech-api/
+- Web Speech API no MDN —
+  https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API
+
+** DUA / UDL
+- CAST — UDL Guidelines 3.0 — https://udlguidelines.cast.org/
+
+** Ferramentas de verificação
+- axe-core — https://github.com/dequelabs/axe-core
+- WAVE — https://wave.webaim.org/
+- Lighthouse — https://developer.chrome.com/docs/lighthouse/

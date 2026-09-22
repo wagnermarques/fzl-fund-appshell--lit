@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit'
 import { registerSW } from 'virtual:pwa-register'
+import './config-accessibility-view.js'
 import './config-privacy-view.js'
 import './config-rest-services-view.js'
 import './consent-banner.js'
@@ -10,11 +11,13 @@ import './auth-view.js'
 import './not-found-view.js'
 import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
+import { accessibilityService } from '../services/accessibility-service.js'
 import { consentService } from '../services/consent-service.js'
 import {
   NOT_FOUND,
   createRouter,
   navigateToAccount,
+  navigateToConfigAccessibility,
   navigateToConfigPrivacy,
   navigateToConfigRestServices,
   navigateToLogin,
@@ -250,16 +253,27 @@ export class AppShell extends LitElement {
                       </md-list-item>
                     </md-list>
                   </nav-accordion>
-                  ${this._asksConsent()
-                    ? html`
-                        <md-list>
+                  <md-list>
+                    ${accessibilityService.config.enabled
+                      ? html`
+                          <md-list-item
+                            type="button"
+                            @click=${() => this._selectDrawerItem(navigateToConfigAccessibility)}
+                          >
+                            <md-icon slot="start">accessibility_new</md-icon>
+                            Acessibilidade
+                          </md-list-item>
+                        `
+                      : ''}
+                    ${this._asksConsent()
+                      ? html`
                           <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToConfigPrivacy)}>
                             <md-icon slot="start">privacy_tip</md-icon>
                             Privacidade
                           </md-list-item>
-                        </md-list>
-                      `
-                    : ''}
+                        `
+                      : ''}
+                  </md-list>
                 </nav-accordion>
               `
             : ''}
@@ -367,6 +381,11 @@ export class AppShell extends LitElement {
         return html`<auth-view></auth-view>`
       case 'config-backend-servicos-rest':
         return html`<config-rest-services-view></config-rest-services-view>`
+      case 'config-acessibilidade':
+        if (accessibilityService.config.enabled) {
+          return html`<config-accessibility-view></config-accessibility-view>`
+        }
+        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
       case 'config-privacidade':
         // Sem GA4 (ou com requireConsent: false) não há o que configurar.
         if (this._asksConsent()) {

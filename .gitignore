@@ -18,3 +18,6 @@ dist-ssr
 
 # Cache local de pacotes do Emacs (ver ides/emacs/init.el)
 /ides/emacs/.emacs-appshell/
+
+# Backups do Emacs
+*~

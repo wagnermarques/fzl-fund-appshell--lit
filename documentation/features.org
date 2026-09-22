@@ -288,8 +288,33 @@ Em conformidade com a LGPD e o Google Consent Mode v2, o módulo =consentService
 - *Base de Componentes*: Material Web oficial (botões, listas, ícones, acordeões, campos de texto, switches).
 - *Folha de Estilos Centralizada (=src/styles/theme.css=)*:
   - Variáveis de cores semânticas Material 3: =--md-sys-color-primary=, =--md-sys-color-surface=, =--md-sys-color-outline=, etc.
-  - Suporte completo a tema Claro (=light=) e Escuro (=dark=).
-  - Adaptação automática às preferências do sistema operacional via =prefers-color-scheme=.
+  - Temas Claro, Escuro, Alto contraste claro e Alto contraste escuro, com todos os papéis de cor do Material 3 definidos em cada um.
+  - Adaptação automática às preferências do sistema operacional via =prefers-color-scheme=, =prefers-contrast= e =prefers-reduced-motion=.
+
+---
+
+* Acessibilidade (tema, fonte e tamanho do texto)
+
+Normas, nível de conformidade e referências: [[file:acessibilidade.org][acessibilidade.org]].
+
+- *Config > Acessibilidade* (=#/config/acessibilidade=): o usuário escolhe tema (inclusive alto contraste, >= 7:1), fonte (sistema, Atkinson Hyperlegible Next, OpenDyslexic) e tamanho do texto (100% a 200%). Vale na hora e fica salvo com o prefixo do app.
+- *=accessibilityService=* (exportado): =get()=, =set({ theme, font, textScale })=, =reset()=, =subscribe()=.
+- *Por app, no =appshell.config.js=*: quais fontes e temas oferecer, a faixa de tamanho e os padrões. Ausente = tudo ligado; =accessibility: false= desliga. Só as fontes habilitadas entram no bundle e no precache do PWA.
+
+#+begin_src javascript
+// appshell.config.js — lido pelo vite.config.js: appshellConfig({ ...appshell, manifest })
+import { defineAppShellConfig } from 'fzl-fund-appshell--lit/config'
+
+export default defineAppShellConfig({
+  title: 'Ler-gislação',
+  accessibility: {
+    fonts: ['atkinson', 'opendyslexic'],
+    themes: ['light', 'dark', 'high-contrast-light', 'high-contrast-dark'],
+    textScale: { min: 1, max: 2 },
+    defaults: { font: 'atkinson', theme: 'system', textScale: 1 },
+  },
+})
+#+end_src
 
 ---
 

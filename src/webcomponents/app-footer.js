@@ -14,7 +14,7 @@ export class AppFooter extends LitElement {
       justify-content: space-between;
       gap: 12px;
       flex: 0 0 auto;
-      height: 32px;
+      min-height: 32px;
       padding: 0 12px;
       background: var(--md-sys-color-surface);
       color: var(--md-sys-color-on-surface-variant);

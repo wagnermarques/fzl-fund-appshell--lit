@@ -20,7 +20,7 @@ export class AppHeader extends LitElement {
       align-items: center;
       gap: 8px;
       flex: 0 0 auto;
-      height: 56px;
+      min-height: 56px;
       padding: 0 8px;
       background: var(--md-sys-color-surface);
       color: var(--md-sys-color-on-surface);

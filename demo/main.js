@@ -2,10 +2,11 @@ import { html } from 'lit'
 import '../src/styles/theme.css'
 import './home-view.js'
 import { createAppShell } from '../src/index.js'
+import appshell from '../appshell.config.js'
 
 createAppShell({
   mount: '#app',
-  title: 'Fund Appshell',
+  title: appshell.title,
   home: () => html`<home-view></home-view>`,
   // Cada app consumidor aponta para a sua própria propriedade do GA4. Sem
   // a variável definida (o caso deste repo rodando como demo), o analytics

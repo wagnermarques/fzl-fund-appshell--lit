@@ -763,6 +763,62 @@ CLOSED: [2026-09-18 sex]
   cadastro → alterar senha (erro com a atual errada, depois ok) → sair →
   esqueci → link → nova senha → login com ela.
 
+** TODO [#A] A4 — Acessibilidade (fontes, alto contraste, voz, eMAG)
+Requisito vindo do Ler-gislação: DUA + WCAG 2.2 + eMAG. Normas, nível de
+conformidade adotado (AA, com AAA onde aplicável), fontes tipográficas e
+referências: =documentation/acessibilidade.org=. Tudo no appshell (não só
+no Ler-gislação), ligado por padrão e ajustável por app no
+=appshell.config.js=.
+
+*** DONE A4.0 — =appshell.config.js= e =defineAppShellConfig=
+- Config declarativa lida pelo =vite.config.js= (build) e pelo =main.js=;
+  só valores simples, porque o =vite.config.js= roda no Node.
+- =defineAppShellConfig()= (=fzl-fund-appshell--lit/config=): valida cedo
+  e dá tipos (JSDoc) ao editor. JS, não TS: nenhum app tem etapa de TS.
+- O preset recebe =accessibility=, valida (chave desconhecida quebra o
+  build) e entrega ao navegador como =__APPSHELL_ACCESSIBILITY__=.
+
+*** DONE A4.1 — Preferências (=accessibility-service=)
+- Tema, fonte e tamanho do texto no localStorage com o prefixo do app;
+  aplicados no =<html>= (=data-theme=, =data-font=, =--app-text-scale=)
+  antes do app montar. Valor fora da config volta ao padrão, campo a campo.
+
+*** DONE A4.2 — Temas de alto contraste
+- Claro/escuro completados com todos os papéis de cor do Material (os
+  ausentes caíam no valor claro embutido dos componentes).
+- Alto contraste claro/escuro gerados com contrastLevel 1.0 e conferidos:
+  todo par texto/fundo >= 7:1, contornos >= 3:1.
+- "Sistema" segue =prefers-color-scheme= e =prefers-contrast: more=;
+  =prefers-reduced-motion= encurta transições.
+
+*** DONE A4.3 — Fontes Atkinson Hyperlegible Next e OpenDyslexic
+- =@fontsource=, autohospedadas, subconjunto latin; o preset gera
+  ='virtual:appshell-fonts'= só com as habilitadas — fonte desligada não
+  entra no bundle nem no precache (+268 KiB com as duas).
+- Tamanho do texto de 100% a 200% (WCAG 1.4.4); cabeçalho e rodapé com
+  =min-height= em vez de altura fixa.
+
+*** DONE A4.5 — Config > Acessibilidade
+- Grupos de rádio (fieldset/legend), alvos >= 48px, prévia de cada fonte,
+  "Restaurar padrões".
+
+*** TODO A4.4 — Leitura em voz alta (=speech-service= + =<tts-player>=)
+- Segmentos passados pelo app (no Ler-gislação, um por artigo); play/pause,
+  anterior/próximo, velocidade; destaque e rolagem do trecho lido.
+- Contornar: corte de falas longas no Chrome (dividir por frase), vozes
+  assíncronas (=voiceschanged=), voz pt-BR com fallback, gesto do usuário
+  no iOS. Nunca iniciar sozinho (1.4.2); não encobrir o foco (2.4.11).
+
+*** TODO A4.6 — Auditoria WCAG 2.2 / eMAG do próprio appshell
+- Link "Ir para o conteúdo" e atalhos eMAG (1 conteúdo, 2 menu, 3 busca);
+  página de acessibilidade.
+- Foco preso no drawer aberto, Esc fecha, foco volta ao botão de menu.
+- Ícones do Material têm tamanho em px: o botão de menu não cresce com o
+  texto a 200% — avaliar.
+- Acesso às preferências quando o app esconde a seção Config
+  (=shellSections.config: false=, caso do app de GA4): atalho no cabeçalho?
+- axe-core nos testes; Orca/NVDA/TalkBack.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.

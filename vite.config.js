@@ -1,9 +1,11 @@
 import { defineConfig, mergeConfig } from 'vite'
+import appshell from './appshell.config.js'
 import { appshellConfig } from './vite/preset.js'
 
 export default defineConfig(
   mergeConfig(
     appshellConfig({
+      ...appshell,
       manifest: {
         name: 'Fund Appshell',
         short_name: 'Appshell',
