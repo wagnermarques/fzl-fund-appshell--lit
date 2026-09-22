@@ -203,6 +203,15 @@ export class AppShell extends LitElement {
     drawer.shadowRoot.appendChild(style)
   }
 
+  updated(changed) {
+    // Toda vez que o drawer abre, todos os acordeões aparecem fechados —
+    // inclusive os que o usuário expandiu da última vez. Roda no mesmo
+    // update que abre o drawer, então o primeiro quadro já sai fechado.
+    if (changed.has('_drawerOpen') && this._drawerOpen) {
+      this.shadowRoot.querySelectorAll('nav-accordion').forEach((accordion) => accordion.collapse())
+    }
+  }
+
   _selectDrawerItem(navigate) {
     navigate()
     this._drawerOpen = false
@@ -276,18 +285,18 @@ export class AppShell extends LitElement {
     `
   }
 
-  /** Uma seção do drawer é { id, label, expanded? } + ou items: [{ label,
+  /** Uma seção do drawer é { id, label } + ou items: [{ label,
    *  icon?, href, visible(user)? }] (lista simples) ou render: () => html``
    *  (conteúdo livre, para uma árvore de navegação própria do domínio). */
   _renderDrawerSection(section) {
     if (section.render) {
       return html`
-        <nav-accordion label=${section.label} ?expanded=${!!section.expanded}>${section.render()}</nav-accordion>
+        <nav-accordion label=${section.label}>${section.render()}</nav-accordion>
       `
     }
     const items = section.items.filter((item) => !item.visible || item.visible(this._user))
     return html`
-      <nav-accordion label=${section.label} ?expanded=${!!section.expanded}>
+      <nav-accordion label=${section.label}>
         <md-list>
           ${items.map(
             (item) => html`

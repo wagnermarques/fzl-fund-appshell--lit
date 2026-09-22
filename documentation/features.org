@@ -60,7 +60,7 @@ vida da aplicação.
 
 ** Drawer de Navegação Lateral (=md-navigation-drawer-modal=)
 - *Painel Modal Padronizado*: Scrim opaco e estilização alinhada com as cores de superfície do tema ativo.
-- *Acordeões Colapsáveis (=<nav-accordion>=)*: Agrupamento em seções expansíveis/colapsáveis.
+- *Acordeões Colapsáveis (=<nav-accordion>=)*: Agrupamento em seções expansíveis/colapsáveis, com título em negrito; toda vez que o drawer abre, todos aparecem fechados.
 - *Tipos de Seção*:
   - /Lista de Itens/ (=items=): Links com ícone, rótulo, URL de destino e função condicional de visibilidade (=visible(user)=).
   - /Conteúdo Livre/ (=render=): Permite renderizar árvores hierárquicas personalizadas de domínio.
@@ -142,7 +142,6 @@ createAppShell({
       {
         id: 'principal',
         label: 'Navegação',
-        expanded: true,
         items: [
           { label: 'Relatórios', icon: 'analytics', href: '#/relatorios' },
           { label: 'Admin', icon: 'shield', href: '#/admin', visible: (user) => user?.isAdmin }

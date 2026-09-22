@@ -25,6 +25,7 @@ export class NavAccordion extends LitElement {
       height: 48px;
       color: var(--md-sys-color-on-surface-variant);
       font-size: 0.8rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -43,6 +44,13 @@ export class NavAccordion extends LitElement {
       transform: rotate(180deg);
     }
   `
+
+  /** Fecha o acordeão (os aninhados no slot são fechados por quem chama,
+   *  que os alcança com querySelectorAll). */
+  collapse() {
+    const details = this.renderRoot.querySelector('details')
+    if (details) details.open = false
+  }
 
   render() {
     return html`
