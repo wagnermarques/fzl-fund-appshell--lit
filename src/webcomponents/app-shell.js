@@ -48,9 +48,21 @@ export class AppShell extends LitElement {
       min-height: 0;
       overflow-y: auto;
     }
-    /* Cinto e suspensório: além do z-index abaixo (que resolve o
-       empilhamento visual do drawer em si), bloqueia clique em qualquer
-       coisa da página por trás enquanto o drawer estiver aberto — o
+    /* Cada região da página vira seu próprio contexto de empilhamento:
+       um z-index qualquer lá dentro (ex.: tooltip de gráfico com
+       z-index: 1, cabeçalho sticky de tabela) passa a valer só entre os
+       vizinhos da região, sem poder empatar com o z-index do drawer e
+       aparecer por cima dele. isolation não cria bloco de contenção, então
+       position: fixed dentro das views continua relativo à viewport. */
+    app-header,
+    main,
+    consent-banner,
+    app-footer {
+      isolation: isolate;
+    }
+    /* Cinto e suspensório: além do isolamento acima e do z-index do
+       drawer (ver firstUpdated), bloqueia clique em qualquer coisa da
+       página por trás enquanto o drawer estiver aberto — o
        scrim opaco já a esconde, mas um componente com camadas internas
        próprias (ex.: md-text-button) pode escapar do empilhamento do
        drawer e continuar clicável. */
