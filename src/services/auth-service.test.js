@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { authService, localProvider } from './auth-service.js'
+import { authService, localProvider, validateAuthProvider } from './auth-service.js'
 
 function memoryStorage() {
   const data = {}
@@ -134,6 +134,16 @@ describe('authService com provedor do app', () => {
 
     await authService.changePassword({ currentPassword: 'a', newPassword: 'b' })
     expect(provider.changePassword).toHaveBeenCalledWith({ user: bia, currentPassword: 'a', newPassword: 'b' })
+  })
+
+  it('provedor com redirect: usesRedirect() e validação do tipo', () => {
+    authService.use({ signIn: async () => null, signOut: async () => {}, redirect: true })
+    expect(authService.usesRedirect()).toBe(true)
+    authService.use(localProvider)
+    expect(authService.usesRedirect()).toBe(false)
+    expect(() => validateAuthProvider({ signIn: async () => null, signOut: async () => {}, redirect: 'sim' })).toThrow(
+      /auth.redirect deve ser booleano/,
+    )
   })
 
   it('init restaura a sessão e pode avisar mudanças; trocar de provedor desfaz o anterior', () => {

@@ -29,6 +29,11 @@
 //       Chamado ao instalar: restaure a sessão salva e avise mudanças
 //       vindas de fora (outra aba, callback do provedor) com setUser(user).
 //   passwordMinLength                    número; padrão 6       (opcional)
+//   redirect                             booleano; padrão false (opcional)
+//       true para provedores que autenticam numa página própria (OAuth2/OIDC,
+//       ex.: Keycloak): a tela de login vira um botão "Entrar" que chama
+//       signIn({}) sem e-mail/senha, e o provedor redireciona o navegador.
+//       A sessão volta pelo init() quando o provedor retorna ao app.
 //
 // Um usuário é { id, name, email, createdAt? }. Operação opcional ausente
 // some da UI (sem signUp, não há "Criar conta"; sem requestPasswordReset,
@@ -239,6 +244,9 @@ export function validateAuthProvider(candidate) {
       throw new Error(`createAppShell: auth.${name} deve ser uma função`)
     }
   }
+  if (candidate.redirect !== undefined && typeof candidate.redirect !== 'boolean') {
+    throw new Error('createAppShell: auth.redirect deve ser booleano')
+  }
   const min = candidate.passwordMinLength
   if (min !== undefined && !(Number.isInteger(min) && min >= 1)) {
     throw new Error('createAppShell: auth.passwordMinLength deve ser um inteiro positivo')
@@ -267,6 +275,11 @@ export const authService = {
   /** true com o provedor local de demonstração (a UI avisa o usuário). */
   isLocal() {
     return provider === localProvider
+  },
+
+  /** true quando o login acontece na página do provedor (auth.redirect). */
+  usesRedirect() {
+    return provider?.redirect === true
   },
 
   passwordMinLength() {

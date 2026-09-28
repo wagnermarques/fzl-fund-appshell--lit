@@ -314,7 +314,34 @@ export class AuthView extends LitElement {
     `
   }
 
+  /** Provedor com redirect (auth.redirect): o login é na página dele. */
+  async _signInWithRedirect() {
+    this._error = null
+    this._busy = true
+    try {
+      await authService.signIn({})
+    } catch (err) {
+      this._error = err.message
+      this._busy = false
+    }
+  }
+
+  _renderRedirect() {
+    return html`
+      <h1>Entrar</h1>
+      <p class="subtitle">Você será levado à página de login da sua conta e depois volta para o app.</p>
+      ${this._renderError()}
+      <md-filled-button ?disabled=${this._busy} @click=${this._signInWithRedirect}>
+        <md-icon slot="icon">login</md-icon>
+        Entrar
+      </md-filled-button>
+    `
+  }
+
   _renderForm(screen) {
+    if (authService.usesRedirect() && !(screen === 'signup' && authService.supports('signUp'))) {
+      return this._renderRedirect()
+    }
     const signup = screen === 'signup' && authService.supports('signUp')
     return html`
       <h1>${signup ? 'Criar conta' : 'Entrar'}</h1>
