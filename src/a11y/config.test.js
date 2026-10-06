@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACCESSIBILITY_DISABLED, FONTS, THEMES, fontImports, resolveAccessibility } from './accessibility-config.js'
-import { defineAppShellConfig } from './config.js'
+import { ACCESSIBILITY_DISABLED, FONTS, THEMES, fontImports, resolveAccessibility } from './config.js'
 
 describe('resolveAccessibility', () => {
   it('ausente liga tudo, com os padrões do sistema', () => {
@@ -61,16 +60,5 @@ describe('fontImports', () => {
       '@fontsource/opendyslexic/latin-700.css',
     ])
     expect(fontImports(resolveAccessibility(false))).toEqual([])
-  })
-})
-
-describe('defineAppShellConfig', () => {
-  it('devolve a config como veio', () => {
-    const config = { title: 'X', accessibility: { fonts: ['atkinson'] } }
-    expect(defineAppShellConfig(config)).toBe(config)
-  })
-
-  it('valida a acessibilidade já na definição', () => {
-    expect(() => defineAppShellConfig({ accessibility: { fonts: ['arial'] } })).toThrow(/arial/)
   })
 })

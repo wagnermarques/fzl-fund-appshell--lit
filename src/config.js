@@ -22,7 +22,7 @@
  * main.js. As opções de acessibilidade chegam ao navegador pelo preset
  * (constante de build), então o main.js não precisa repassá-las.
  */
-import { resolveAccessibility } from './accessibility-config.js'
+import { resolveAccessibility } from './a11y/config.js'
 
 /**
  * @typedef {'atkinson' | 'opendyslexic'} AppShellFont
@@ -54,4 +54,4 @@ export function defineAppShellConfig(config) {
   return config
 }
 
-export { FONTS, THEMES, TEXT_SCALES } from './accessibility-config.js'
+export { FONTS, THEMES, TEXT_SCALES } from './a11y/config.js'

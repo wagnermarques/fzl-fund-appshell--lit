@@ -1,9 +1,13 @@
 import { LitElement, html, css } from 'lit'
+import { announce } from '../a11y/index.js'
 
 /** Bolinha + rótulo com o estado de rede: online/offline (via navigator.onLine
  *  + os eventos 'online'/'offline') e, quando o navegador expõe a Network
  *  Information API (hoje só browsers baseados em Chromium — Firefox/Safari
- *  não implementam), o tipo de conexão (wifi, cellular, 4g...). */
+ *  não implementam), o tipo de conexão (wifi, cellular, 4g...).
+ *
+ *  Cair e voltar a conexão são anunciados a leitores de tela (WCAG 4.1.3)
+ *  — só a mudança, não o estado inicial nem a troca de tipo de rede. */
 export class ConnectionStatus extends LitElement {
   static properties = {
     _online: { state: true },
@@ -43,9 +47,11 @@ export class ConnectionStatus extends LitElement {
     this._onOnline = () => {
       this._online = true
       this._kind = this._readConnectionKind()
+      announce('Conexão restabelecida')
     }
     this._onOffline = () => {
       this._online = false
+      announce('Sem conexão. O app continua funcionando com o que já está em cache.')
     }
     this._onConnectionChange = () => {
       this._kind = this._readConnectionKind()

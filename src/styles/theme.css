@@ -6,6 +6,10 @@
    nunca do shell. */
 @import '@material-symbols/font-400/outlined.css';
 
+/* Fonte, tamanho do texto e movimento reduzido — a parte portátil, sem
+   Material (ver src/a11y/). Aqui só se ligam os tokens dela aos do Material. */
+@import '../a11y/a11y.css';
+
 /* Temas — tokens de cor do Material 3 a partir da semente #6750a4.
 
    Todos os papéis de cor que os componentes do @material/web leem estão
@@ -22,7 +26,7 @@
      documentation/acessibilidade.org.
 
    Quem escolhe o tema é o atributo data-theme no <html>
-   (accessibility-service.js). Sem o atributo ("sistema"), seguem-se
+   (src/a11y/preferences.js). Sem o atributo ("sistema"), seguem-se
    prefers-color-scheme e prefers-contrast do sistema operacional. */
 :root {
   --md-sys-color-primary: #6750a4;
@@ -328,40 +332,8 @@
    'virtual:appshell-fonts' (só as fontes que o app habilitou; ver
    vite/preset.js). Fallback sempre para a fonte do sistema. */
 :root {
-  --md-ref-typeface-brand: system-ui, sans-serif;
-  --md-ref-typeface-plain: system-ui, sans-serif;
-}
-
-:root[data-font='atkinson'] {
-  --md-ref-typeface-brand: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
-  --md-ref-typeface-plain: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
-}
-
-:root[data-font='opendyslexic'] {
-  --md-ref-typeface-brand: 'OpenDyslexic', system-ui, sans-serif;
-  --md-ref-typeface-plain: 'OpenDyslexic', system-ui, sans-serif;
-}
-
-/* Tamanho do texto: --app-text-scale (1 a 2) multiplica o font-size da
-   raiz, e com ele todo tamanho em rem — do appshell e dos componentes do
-   Material. Parte de 100%, então o tamanho que o usuário configurou no
-   navegador continua valendo por baixo (WCAG 1.4.4). */
-html {
-  font-size: calc(var(--app-text-scale, 1) * 100%);
-}
-
-/* Movimento reduzido (WCAG 2.3.3): encurta transições e animações —
-   drawer, acordeões, ripple — sem desligá-las, para os eventos de fim de
-   transição dos componentes continuarem disparando. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+  --md-ref-typeface-brand: var(--a11y-font-family);
+  --md-ref-typeface-plain: var(--a11y-font-family);
 }
 
 * {

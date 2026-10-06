@@ -26,6 +26,9 @@ function validateRoutes(routes) {
     if (typeof route.render !== 'function') {
       throw new Error(`createAppShell: rota "${route.name}" precisa de "render"`)
     }
+    if (route.title !== undefined && typeof route.title !== 'string' && typeof route.title !== 'function') {
+      throw new Error(`createAppShell: "title" da rota "${route.name}" deve ser texto ou ({ params, query }) => texto`)
+    }
   }
 }
 

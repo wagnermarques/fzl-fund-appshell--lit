@@ -1,0 +1,508 @@
+#+TITLE: WCAG — roteiro de avaliação e conformidade do appshell
+#+LANGUAGE: pt-BR
+#+STARTUP: content
+#+TODO: TODO EMANDAMENTO VERIFICAR | DONE NA
+#+DATE: 2026-10-06
+
+Documento vivo: *atualizar a cada avaliação*. Diz o que é a WCAG, quais
+versões existem, qual delas o appshell segue, o que já está feito e o que
+falta. As normas, o nível de conformidade adotado e as referências
+detalhadas estão em [[file:documentation/acessibilidade.org][documentation/acessibilidade.org]]; as tarefas de
+implementação, no item A4 do [[file:roadmap.org][roadmap.org]]. Aqui fica o *estado da avaliação*.
+
+Estados usados nos itens:
+- =TODO= — não implementado.
+- =EMANDAMENTO= — implementado em parte.
+- =VERIFICAR= — implementado, mas ainda não testado do jeito que o critério
+  exige (leitor de tela, zoom, ferramenta).
+- =DONE= — implementado e verificado.
+- =NA= — não se aplica ao appshell (é responsabilidade do app ou não existe
+  esse tipo de conteúdo).
+
+* Registro de avaliações
+
+| Data       | Quem | Versão/commit | Escopo                                | Resultado                                                    |
+|------------+------+---------------+---------------------------------------+--------------------------------------------------------------|
+| 2026-10-06 | —    | 34697d9       | Leitura do código (sem teste manual)  | Estado inicial deste documento. Ver [[*Situação atual][Situação atual]]. |
+| 2026-10-06 | —    | (refatoração) | Módulo =src/a11y/= + 2.4.1, 2.4.2, 2.4.3, 4.1.3 | Implementados com os utilitários portáteis; falta teste manual. |
+
+Ao fazer uma nova avaliação: acrescentar uma linha, atualizar os estados
+dos critérios e a [[*Situação atual][Situação atual]].
+
+* O que é a WCAG
+
+As /Web Content Accessibility Guidelines/ (Diretrizes de Acessibilidade para
+Conteúdo Web) são publicadas pelo W3C, por meio da WAI (/Web Accessibility
+Initiative/). Dizem como tornar conteúdo e aplicações web acessíveis a
+pessoas com deficiência visual, auditiva, motora, cognitiva, de fala e
+neurológica — e, de quebra, a idosos e a quem usa o app em condições ruins
+(sol na tela, uma mão só, conexão lenta).
+
+** Estrutura
+
+- *4 princípios* (o acrônimo POUR):
+  1. *Perceptível* — a informação chega ao usuário por algum sentido
+     (alternativas em texto, contraste, redimensionamento).
+  2. *Operável* — dá para usar a interface (teclado, tempo suficiente,
+     navegação, sem provocar convulsões).
+  3. *Compreensível* — o conteúdo e o funcionamento são previsíveis e
+     legíveis (idioma, erros explicados).
+  4. *Robusto* — funciona com tecnologias assistivas atuais e futuras
+     (nome, função e valor expostos corretamente).
+- *Diretrizes* (13 na 2.2) — objetivos gerais dentro de cada princípio.
+- *Critérios de sucesso* (86 na 2.2) — afirmações *testáveis*, numeradas
+  como =princípio.diretriz.critério= (ex.: 1.4.3 Contraste mínimo).
+- *Técnicas suficientes e falhas comuns* — documentos informativos ("How to
+  Meet" e "Understanding") que mostram como atender cada critério.
+
+** Níveis de conformidade
+
+| Nível | Significado                                                                                        |
+|-------+----------------------------------------------------------------------------------------------------|
+| A     | Mínimo. Sem ele, algum grupo de pessoas simplesmente não consegue usar o conteúdo.                  |
+| AA    | O nível exigido por leis e normas no mundo todo (incluindo a ABNT NBR 17225 e a LBI, na prática). |
+| AAA   | O mais alto. A própria WCAG *não recomenda* exigir AAA de um site inteiro.                          |
+
+Conformidade num nível exige atender *todos* os critérios daquele nível e
+dos inferiores, *na página inteira* e em *todo o processo* (ex.: um
+cadastro em três passos só é conforme se os três forem).
+
+* Versões da WCAG
+
+| Versão   | Data                    | Situação                     | Observações                                                                                                                                         |
+|----------+-------------------------+------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| WCAG 1.0 | maio/1999               | Obsoleta                     | 14 diretrizes com "pontos de verificação" e prioridades 1–3. Muito ligada ao HTML da época.                                                          |
+| WCAG 2.0 | dez./2008               | Recomendação (ainda vigente) | Introduz POUR e critérios testáveis, independentes de tecnologia. Virou ISO/IEC 40500:2012. Base do eMAG 3.1 e da Section 508 (EUA).                 |
+| WCAG 2.1 | jun./2018               | Recomendação                 | +17 critérios: dispositivos móveis, baixa visão e cognição (ex.: 1.4.10 Refluxo, 1.4.11 Contraste não textual, 1.4.12 Espaçamento, 4.1.3 Status).   |
+| WCAG 2.2 | out./2023 (rev. dez./2024) | *Recomendação atual*      | +9 critérios (foco, alvos, autenticação, ajuda consistente); *remove* 4.1.1 Análise. Base da ABNT NBR 17225:2025 e adotada como ISO/IEC 40500:2025. |
+| WCAG 3.0 | —                       | Rascunho (/Working Draft/)   | Modelo novo (resultados, pontuação, níveis bronze/prata/ouro; contraste APCA em estudo). *Não serve* para declarar conformidade. Acompanhar.          |
+
+Pontos importantes:
+- As versões 2.x são *retrocompatíveis*: quem atende a 2.2 atende a 2.1 e a
+  2.0 (exceto pelo 4.1.1, removido, que hoje é irrelevante nos navegadores).
+- A WCAG 3.0 *não* substitui a 2.2 tão cedo. Até ela virar Recomendação (e
+  as normas brasileiras a adotarem), a referência é a 2.2.
+- No Brasil: a LBI (Lei 13.146/2015, art. 63) torna a acessibilidade
+  obrigatória; a *ABNT NBR 17225:2025* traz os requisitos e é baseada na
+  WCAG 2.2; o *eMAG 3.1* (baseado na WCAG 2.0) continua valendo para os
+  elementos padronizados de sites de governo.
+
+* Qual WCAG este projeto implementa
+
+*Alvo: WCAG 2.2 nível AA*, mais critérios AAA onde aplicáveis (contraste
+1.4.6, alvos 2.5.5, aparência do foco 2.4.13, animação 2.3.3), e os
+elementos padronizados do eMAG 3.1. Decisão registrada em
+[[file:documentation/acessibilidade.org][documentation/acessibilidade.org]].
+
+*Situação real hoje: o appshell ainda não pode declarar conformidade com
+nenhum nível* — nem A. Há critérios de nível A pendentes (ex.: 2.4.1
+Ignorar blocos, 2.4.2 Título da página, 2.1.1 no título do cabeçalho) e
+nenhum teste com leitor de tela foi feito. O que está pronto (A4.0–A4.3,
+A4.5) cobre bem a parte de *percepção* (contraste, temas, fontes, tamanho
+do texto), que é justamente onde a maioria dos critérios AAA escolhidos
+está.
+
+Escopo: este documento avalia *o appshell* — cabeçalho, drawer, rodapé,
+telas de conta, de config e de privacidade, banner de consentimento, aviso
+de nova versão. O conteúdo de cada app (artigos, gráficos, imagens) é
+avaliado no próprio app; os critérios marcados =NA= aqui podem valer lá.
+
+* Situação atual
+
+Resumo da avaliação de 2026-10-06 (leitura de código, depois da refatoração
+para =src/a11y/=; sem teste manual):
+
+| Princípio        | DONE | VERIFICAR | EMANDAMENTO | TODO | NA |
+|------------------+------+-----------+-------------+------+----|
+| 1 Perceptível    |    6 |         5 |           3 |    1 |  6 |
+| 2 Operável       |    7 |        10 |           3 |    2 |  9 |
+| 3 Compreensível  |    8 |         4 |           0 |    0 |  5 |
+| 4 Robusto        |    0 |         1 |           1 |    0 |  1 |
+|------------------+------+-----------+-------------+------+----|
+| Total            |   21 |        20 |           7 |    3 | 21 |
+
+Contagem por item da árvore abaixo (alguns itens =NA= agrupam vários
+critérios, ex.: 1.2.1 a 1.2.9). Para recontar no Emacs: =C-c / t= mostra
+os itens por estado.
+
+Prioridades (do que impede declarar AA para o que é refinamento):
+1. *Bloqueadores de nível A*: título do cabeçalho clicável só com mouse
+   (2.1.1), foco ao fechar o drawer (2.4.3); testar o link "Ir para o
+   conteúdo" (2.4.1) e os títulos por rota (2.4.2), já implementados.
+2. *Bloqueadores de nível AA*: anúncio de novas notificações (4.1.3), altura
+   fixa em px em componentes que crescem com o texto (1.4.4/1.4.12), foco
+   não encoberto pelo banner e pelo aviso de versão (2.4.11).
+3. *Verificação*: axe-core nos testes; teste manual com teclado, zoom 400%,
+   espaçamento de texto e leitores de tela (Orca, NVDA, TalkBack,
+   VoiceOver).
+4. *eMAG*: atalhos de teclado padronizados e página de acessibilidade.
+5. *A4.4*: leitura em voz alta (critérios 1.4.2, 2.4.11, 4.1.3 do player).
+
+* Critérios WCAG 2.2 — avaliação do appshell
+
+Lista dos 86 critérios. Os que não se aplicam ao shell estão marcados =NA=
+com o motivo. "Onde" aponta o arquivo principal.
+
+** 1 Perceptível
+
+*** 1.1 Alternativas em texto
+**** EMANDAMENTO 1.1.1 Conteúdo não textual (A)
+- Botões só com ícone têm =aria-label= (menu, notificações, conta).
+- Verificar: ícones decorativos ao lado de texto (=md-icon= no drawer e no
+  =connection-status=) não devem ser lidos como "wifi", "dns" etc. O
+  =md-icon= do Material Web costuma vir com =aria-hidden=; confirmar com
+  leitor de tela.
+- Onde: =app-header.js=, =user-notifications.js=, =user-status.js=,
+  =connection-status.js=.
+
+*** 1.2 Mídia baseada em tempo
+**** NA 1.2.1 a 1.2.9 Áudio, vídeo, legendas, audiodescrição, Libras (A/AA/AAA)
+O shell não tem áudio nem vídeo gravado. Vale para os apps que tiverem.
+A leitura em voz alta (A4.4) é síntese do texto já presente, não mídia
+gravada.
+
+*** 1.3 Adaptável
+**** EMANDAMENTO 1.3.1 Informações e relações (A)
+- Há =<main>=, grupos de rádio com =fieldset/legend= em Config >
+  Acessibilidade, =<details>/<summary>= nos acordeões.
+- Falta: o drawer não está num =<nav>= (região de navegação), o cabeçalho
+  não é =<header>= / =role="banner"= e o rodapé não é =<footer>= /
+  =role="contentinfo"= (são custom elements sem papel).
+- Há dois =<h1>= por tela (título do app no cabeçalho + título da view);
+  avaliar deixar o do cabeçalho como texto/link e a view com o único =<h1>=.
+**** VERIFICAR 1.3.2 Sequência com significado (A)
+Ordem do DOM = ordem visual (cabeçalho, drawer, main, banner, rodapé).
+Conferir com leitor de tela.
+**** DONE 1.3.3 Características sensoriais (A)
+Instruções não dependem de forma, cor ou posição.
+**** VERIFICAR 1.3.4 Orientação (AA)
+Nada trava retrato/paisagem. Conferir no manifesto do PWA
+(=orientation= não deve ser fixado).
+**** DONE 1.3.5 Identificar o propósito da entrada (AA)
+Campos de conta com =autocomplete= (=name=, =email=, =current-password=,
+=new-password=). Onde: =auth-view.js=.
+**** NA 1.3.6 Identificar o propósito (AAA)
+Fora da meta.
+
+*** 1.4 Distinguível
+**** DONE 1.4.1 Uso de cor (A)
+Estado offline tem ícone e texto, não só cor. Erros têm texto.
+**** NA 1.4.2 Controle de áudio (A)
+Sem áudio no shell hoje. *Passa a valer com A4.4*: o player nunca pode
+começar a falar sozinho.
+**** DONE 1.4.3 Contraste (mínimo) (AA)
+Temas claro e escuro completos (todos os papéis de cor do Material).
+Conferir pares novos sempre que um token for adicionado.
+Onde: =src/styles/theme.css=.
+**** VERIFICAR 1.4.4 Redimensionar texto (AA)
+- Escala de 100% a 200% em Config > Acessibilidade; cabeçalho e rodapé
+  com =min-height=.
+- Pendentes: alturas fixas em px que não crescem com o texto —
+  =nav-accordion.js= (=height: 48px= / =40px= no =summary=),
+  =user-status.js= (=height: 32px=), badge de notificações (=16px=).
+  Ícones do Material têm tamanho em px (o botão de menu não cresce).
+**** NA 1.4.5 Imagens de texto (AA)
+Não há imagens de texto no shell.
+**** DONE 1.4.6 Contraste (melhorado) (AAA)
+Temas de alto contraste com todo par texto/fundo ≥ 7:1.
+**** NA 1.4.7 Áudio de fundo baixo ou ausente (AAA)
+Sem áudio.
+**** EMANDAMENTO 1.4.8 Apresentação visual (AAA)
+Cores e fonte escolhidas pelo usuário (feito). Falta: largura de linha
+≤ 80 caracteres, sem texto justificado, espaçamento de linha ajustável —
+mais relevante no conteúdo dos apps.
+**** NA 1.4.9 Imagens de texto (sem exceção) (AAA)
+Não há.
+**** VERIFICAR 1.4.10 Refluxo (AA)
+Testar a 320px de largura (= zoom 400% em 1280px): cabeçalho com título
+longo + ações + usuário, toast de versão, banner de consentimento.
+**** DONE 1.4.11 Contraste não textual (AA)
+Contornos ≥ 3:1 nos temas de alto contraste; conferir nos temas comuns
+(=outline= =#79747e= sobre superfície clara) e o anel de foco.
+**** TODO 1.4.12 Espaçamento de texto (AA)
+Testar com o bookmarklet de espaçamento (altura de linha 1,5, parágrafo 2×,
+letras 0,12em, palavras 0,16em). Mesmos suspeitos do 1.4.4 (alturas fixas,
+=line-height: 16px= no badge). Avaliar oferecer preferência de espaçamento
+em Config > Acessibilidade (útil para dislexia — ver acessibilidade.org).
+**** VERIFICAR 1.4.13 Conteúdo em foco ou hover (AA)
+Tooltips via atributo =title= (=connection-status.js=,
+=user-notifications.js=) não são dispensáveis nem acessíveis por teclado.
+Ou a informação também aparece de outra forma, ou trocar por tooltip
+acessível.
+
+** 2 Operável
+
+*** 2.1 Acessível por teclado
+**** EMANDAMENTO 2.1.1 Teclado (A)
+- Botões, itens do drawer e acordeões são operáveis por teclado.
+- *Falha*: o =<h1>= do cabeçalho tem =@click= para ir à home, mas não é
+  focável nem responde a Enter. Trocar por link/botão. Onde:
+  =app-header.js=.
+**** VERIFICAR 2.1.2 Sem bloqueio do teclado (A)
+O drawer modal deve prender o foco enquanto aberto e soltar com Esc.
+O resto da página fica =inert= (=app-shell.js=). Conferir que Esc fecha.
+**** NA 2.1.3 Teclado (sem exceção) (AAA)
+Fora da meta (atendido se 2.1.1 for).
+**** TODO 2.1.4 Atalhos de teclado por caractere (A)
+Ainda não há atalhos. Os do eMAG (=1=, =2=, =3=) devem usar a tecla
+modificadora (=accesskey=), nunca uma letra sozinha — senão este critério
+passa a valer.
+
+*** 2.2 Tempo suficiente
+**** VERIFICAR 2.2.1 Tempo ajustável (A)
+O shell não tem limite de tempo. Verificar a expiração de sessão do
+provedor de auth: avisar antes e permitir estender, sem perder dados.
+**** DONE 2.2.2 Pausar, parar, ocultar (A)
+O relógio do rodapé atualiza mas não é anunciado e não é animação; sem
+carrosséis. Reavaliar se surgir conteúdo que se move por mais de 5 s.
+**** NA 2.2.3 a 2.2.6 (AAA)
+Sem tempo, interrupções controláveis; fora da meta.
+
+*** 2.3 Convulsões e reações físicas
+**** DONE 2.3.1 Três flashes ou abaixo do limite (A)
+Nada pisca.
+**** NA 2.3.2 Três flashes (AAA)
+Idem.
+**** DONE 2.3.3 Animação por interação (AAA)
+=prefers-reduced-motion= encurta as transições (=theme.css=). Reavaliar
+com a rolagem até o trecho lido (A4.4).
+
+*** 2.4 Navegável
+**** VERIFICAR 2.4.1 Ignorar blocos (A)
+Link "Ir para o conteúdo" é o primeiro elemento focável e leva o foco ao
+=<main>= (=focusElement= de =src/a11y/focus.js=; o =<main>= está no shadow
+DOM, onde um =href="#id"= não chega). Testar com teclado e leitor de tela.
+O atalho 1 do eMAG ainda falta (ver eMAG abaixo). Onde: =app-shell.js=.
+**** VERIFICAR 2.4.2 Página com título (A)
+=document.title= muda a cada rota: "Acessibilidade — <título do app>"
+(=setDocumentTitle= de =src/a11y/focus.js=). Rotas do shell têm títulos
+fixos; rotas do app usam o novo =route.title= (texto ou
+=({ params, query }) => texto=) — *cada app precisa preenchê-lo*, senão a
+aba mostra só o título do app. Onde: =app-shell.js=, =create-app-shell.js=.
+**** EMANDAMENTO 2.4.3 Ordem do foco (A)
+- Feito: ao trocar de rota (não na carga inicial), o foco vai para o
+  =<main>= da tela nova. Avaliar com leitor de tela se é melhor ir ao
+  =<h1>= da view (está no shadow DOM de cada view).
+- Falta: ao fechar o drawer sem navegar, devolver o foco ao botão de menu.
+**** DONE 2.4.4 Finalidade do link (em contexto) (A)
+Itens têm texto ("Serviços REST", "Privacidade", "Ir para o início").
+**** VERIFICAR 2.4.5 Várias formas (AA)
+Drawer + home. Para apps grandes, considerar busca (atalho 3 do eMAG).
+**** VERIFICAR 2.4.6 Cabeçalhos e rótulos (AA)
+Cada view tem =<h1>= descritivo; rótulos dos campos claros. Ver a questão
+dos dois =<h1>= em 1.3.1.
+**** VERIFICAR 2.4.7 Foco visível (AA)
+Material Web tem anel de foco próprio. Conferir em todos os quatro temas,
+inclusive no =<summary>= dos acordeões (estilo próprio) e no cabeçalho.
+**** NA 2.4.8 Localização (AAA)
+Fora da meta (o título da página, quando existir, ajuda).
+**** NA 2.4.9 Finalidade do link (só o link) (AAA)
+Fora da meta.
+**** NA 2.4.10 Cabeçalhos de seção (AAA)
+Fora da meta.
+**** TODO 2.4.11 Foco não encoberto (mínimo) (AA) — novo na 2.2
+O banner de consentimento e o toast "nova versão" são fixos na parte de
+baixo; um elemento focado logo acima do rodapé pode ficar totalmente
+escondido. Usar =scroll-padding-bottom= no =<main>= com a altura deles.
+Vale também para o player do A4.4.
+**** NA 2.4.12 Foco não encoberto (melhorado) (AAA) — novo na 2.2
+Fora da meta (bom ter, se o 2.4.11 for resolvido com folga).
+**** VERIFICAR 2.4.13 Aparência do foco (AAA) — novo na 2.2
+Meta AAA: anel ≥ 2px e contraste ≥ 3:1 entre focado e não focado. Medir o
+anel do Material Web nos quatro temas.
+
+*** 2.5 Modalidades de entrada
+**** DONE 2.5.1 Gestos de ponteiro (A)
+Nada exige gesto com vários dedos ou trajetória.
+**** DONE 2.5.2 Cancelamento do ponteiro (A)
+Ações disparam no =click= (soltar), não no =mousedown=.
+**** VERIFICAR 2.5.3 Rótulo no nome (A)
+O nome acessível deve conter o texto visível. Ex.: =user-status= tem
+=aria-label="Conta de <nome>"= — conferir se o texto visível está contido.
+**** NA 2.5.4 Atuação por movimento (A)
+Nada é acionado por sacudir/inclinar.
+**** EMANDAMENTO 2.5.5 Tamanho do alvo (melhorado) (AAA)
+Config > Acessibilidade com alvos ≥ 48px. Conferir os demais (badge,
+botões do toast e do banner, itens aninhados do drawer com 40px).
+**** NA 2.5.6 Mecanismos de entrada concorrentes (AAA)
+Fora da meta (nada bloqueia teclado/toque/mouse).
+**** DONE 2.5.7 Movimentos de arrastar (AA) — novo na 2.2
+Nada exige arrastar. (O drawer abre e fecha por botão.)
+**** VERIFICAR 2.5.8 Tamanho do alvo (mínimo) (AA) — novo na 2.2
+Alvos ≥ 24×24px. Botões do Material têm 40–48px; conferir os elementos
+próprios (=user-status=, =summary= aninhado).
+
+** 3 Compreensível
+
+*** 3.1 Legível
+**** DONE 3.1.1 Idioma da página (A)
+=<html lang="pt-BR">= em =index.html=. Garantir que todo app que usa o
+shell mantenha isso.
+**** VERIFICAR 3.1.2 Idioma das partes (AA)
+Termos em outro idioma no shell (ex.: "Online", "Offline", tipo de
+conexão em inglês "4G/WIFI") — trocar por português ou marcar =lang=.
+**** NA 3.1.3 a 3.1.6 Palavras incomuns, abreviaturas, nível de leitura, pronúncia (AAA)
+Fora da meta no shell; relevantes no conteúdo de legislação dos apps.
+
+*** 3.2 Previsível
+**** DONE 3.2.1 Em foco (A)
+Receber foco não muda de contexto.
+**** DONE 3.2.2 Em entrada (A)
+Mudar a preferência aplica o tema/fonte na hora, mas sem mudar de página
+nem de foco — permitido.
+**** DONE 3.2.3 Navegação consistente (AA)
+Cabeçalho, drawer e rodapé iguais em todas as telas.
+**** DONE 3.2.4 Identificação consistente (AA)
+Mesmos ícones e rótulos para as mesmas funções.
+**** NA 3.2.5 Mudança mediante solicitação (AAA)
+Fora da meta. (O toast de versão já pede confirmação: atende.)
+**** VERIFICAR 3.2.6 Ajuda consistente (A) — novo na 2.2
+Se o app oferecer ajuda/contato, fica no mesmo lugar em todas as telas.
+Sugestão: slot no drawer ou no rodapé do shell, e a página de
+acessibilidade do eMAG sempre no mesmo lugar.
+
+*** 3.3 Assistência de entrada
+**** DONE 3.3.1 Identificação do erro (A)
+Erros de conta em texto com =role="alert"= (=auth-view.js=).
+**** VERIFICAR 3.3.2 Rótulos ou instruções (A)
+Campos com rótulo e dica ("Mínimo de N caracteres"). Conferir o campo de
+Serviços REST (formato esperado da URL).
+**** VERIFICAR 3.3.3 Sugestão de erro (AA)
+Mensagens do provedor de auth (=err.message=) podem vir em inglês e sem
+dizer como corrigir — traduzir/mapear.
+**** NA 3.3.4 Prevenção de erros (legais, financeiros, dados) (AA)
+O shell não faz transações. Avaliar nos apps (o fund pode ter).
+**** NA 3.3.5 Ajuda (AAA) / 3.3.6 Prevenção de erros (todos) (AAA)
+Fora da meta.
+**** DONE 3.3.7 Entrada redundante (A) — novo na 2.2
+Os fluxos de conta não pedem de novo o que já foi informado (confirmar
+senha é exceção permitida, por segurança).
+**** DONE 3.3.8 Autenticação acessível (mínimo) (AA) — novo na 2.2
+Login por e-mail e senha, sem teste cognitivo nem captcha; =autocomplete=
+permite gerenciador de senhas e colar. Reavaliar se entrar captcha ou
+2FA por código.
+**** NA 3.3.9 Autenticação acessível (melhorado) (AAA) — novo na 2.2
+Fora da meta.
+
+** 4 Robusto
+
+*** 4.1 Compatível
+**** NA 4.1.1 Análise (removido na 2.2)
+Não existe mais na WCAG 2.2 e não entra no relatório.
+**** VERIFICAR 4.1.2 Nome, função, valor (A)
+- Componentes do Material Web expõem papéis corretos.
+- Conferir os custom elements próprios com leitor de tela:
+  =nav-accordion= (=<details>= no shadow DOM), =user-status=,
+  =consent-banner= (=role="region"= com nome — ok).
+**** EMANDAMENTO 4.1.3 Mensagens de status (AA)
+- Aviso de nova versão com =role="status"= (ok); erro de conta com
+  =role="alert"= (ok).
+- Feito: cair e voltar a conexão são anunciados (=announce= de
+  =src/a11y/announce.js=, em =connection-status.js=). Testar com leitor de
+  tela.
+- Falta: novas notificações do usuário (=user-notifications.js=). O
+  relógio do rodapé não deve ser anunciado.
+
+* Módulo portátil =fzl-fund-appshell--lit/a11y=
+
+O que é de acessibilidade e não depende do appshell fica em =src/a11y/=,
+sem lit, sem Material e sem constante de build — usável em qualquer
+projeto web (Lit, React, Vue, HTML puro). O appshell é só um consumidor.
+
+| Entry                                  | Arquivo                 | O que dá                                                                 |
+|----------------------------------------+-------------------------+--------------------------------------------------------------------------|
+| =fzl-fund-appshell--lit/a11y=            | =src/a11y/index.js=      | config, preferências, =announce=, =focusElement=, =setDocumentTitle=, contraste |
+| =fzl-fund-appshell--lit/a11y/styles.css= | =src/a11y/a11y.css=      | fontes (=--a11y-font-family=), tamanho do texto, movimento reduzido, skip link |
+| =fzl-fund-appshell--lit/a11y/vite=       | =src/a11y/vite.js=       | plugin que gera o =@font-face= só das fontes habilitadas                  |
+
+Uso num projeto que não é o appshell:
+
+#+begin_src js
+// vite.config.js
+import { a11yFontsPlugin, resolveAccessibility } from 'fzl-fund-appshell--lit/a11y/vite'
+const a11y = resolveAccessibility({ fonts: ['atkinson'] })
+export default { plugins: [a11yFontsPlugin(a11y)], define: { __A11Y__: JSON.stringify(a11y) } }
+
+// main.js
+import 'virtual:a11y-fonts'
+import 'fzl-fund-appshell--lit/a11y/styles.css'
+import { createPreferences, announce } from 'fzl-fund-appshell--lit/a11y'
+export const a11yPrefs = createPreferences({ config: __A11Y__, key: 'meuapp:a11y:preferences' })
+a11yPrefs.apply() // antes de montar o app
+#+end_src
+
+Limites:
+- *Cores dos temas* não estão no módulo: o valor de =data-theme= é marcado
+  no =<html>=, mas cada projeto define as cores no seu CSS (no appshell,
+  tokens do Material em =src/styles/theme.css=). Os temas de alto
+  contraste só são portáteis entre projetos que usam Material Web.
+- *A tela de preferências* (=config-accessibility-view.js=) ainda é Lit +
+  Material e lê o serviço do appshell. Separar quando houver um segundo
+  consumidor que precise dela.
+- O módulo dá peças e testes; *não* torna outro projeto conforme. A
+  conformidade é de cada página, e cada projeto precisa da sua avaliação
+  (este arquivo serve de modelo).
+
+* eMAG 3.1 — elementos padronizados
+
+** TODO Atalhos de teclado (=1= conteúdo, =2= menu, =3= busca)
+Com =accesskey=, acionados por Alt (ou Alt+Shift no Firefox). Sem busca,
+omitir o 3. Ver 2.1.4.
+** EMANDAMENTO Barra de acessibilidade
+O cabeçalho + Config > Acessibilidade podem cumprir o papel, desde que os
+atalhos e o acesso ao alto contraste estejam lá.
+** TODO Página de acessibilidade
+Rota do shell descrevendo os recursos (atalhos, temas, fontes, tamanho do
+texto, leitura em voz alta) e como usá-los.
+** EMANDAMENTO Alto contraste acessível de qualquer página
+Existe em Config > Acessibilidade, mas some se o app esconder a seção
+Config (=shellSections.config: false=). Avaliar atalho no cabeçalho.
+
+* Além da WCAG (recursos do DUA)
+
+** DONE Temas claro, escuro e alto contraste (claro/escuro)
+** DONE Fontes Atkinson Hyperlegible Next e OpenDyslexic
+** DONE Tamanho do texto 100–200%
+** TODO Preferência de espaçamento de texto
+Ligada ao 1.4.12 e à evidência sobre dislexia (ver acessibilidade.org).
+** TODO Leitura em voz alta (A4.4)
+** TODO Modo de cores forçadas (=forced-colors: active=, Alto Contraste do Windows)
+Testar e corrigir onde a informação dependa de cor de fundo ou sombra.
+
+* Como avaliar (checklist de cada rodada)
+
+1. [ ] *Automático*: contraste dos quatro temas já é testado no Vitest
+       (=src/styles/theme.test.js=, com =src/a11y/contrast.js=); axe-core
+       nos testes — ainda não instalado;
+       Lighthouse e WAVE nas telas principais; ASES (avaliador do eMAG).
+2. [ ] *Contraste*: cada par de tokens, nos quatro temas.
+3. [ ] *Teclado*: tudo com Tab/Shift+Tab/Enter/Espaço/Esc/setas; foco
+       sempre visível e nunca encoberto.
+4. [ ] *Zoom e texto*: texto a 200%, zoom de 400% (320px), bookmarklet de
+       espaçamento; com cada fonte (OpenDyslexic é mais larga).
+5. [ ] *Movimento e cores*: =prefers-reduced-motion=, =prefers-contrast=,
+       =forced-colors=.
+6. [ ] *Leitores de tela*: Orca (Linux), NVDA (Windows), TalkBack (Android),
+       VoiceOver (iOS/macOS).
+7. [ ] *Pessoas*: teste com usuários com baixa visão, dislexia e que usam
+       leitor de tela.
+8. [ ] Registrar o resultado em [[*Registro de avaliações][Registro de avaliações]] e atualizar os
+       estados acima.
+
+Ferramentas automáticas acham só ~30–40% dos problemas: um axe-core sem
+erros *não* significa conformidade.
+
+* Referências
+
+- WCAG 2.2 (W3C) — https://www.w3.org/TR/WCAG22/
+- WCAG 2.2 em português (tradução autorizada, Ceweb.br/NIC.br) —
+  https://www.w3c.br/traducoes/wcag/wcag22-pt-BR/
+- Novidades da WCAG 2.2 — https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/
+- Understanding WCAG 2.2 — https://www.w3.org/WAI/WCAG22/Understanding/
+- How to Meet WCAG 2.2 (referência rápida) — https://www.w3.org/WAI/WCAG22/quickref/
+- Visão geral das versões da WCAG — https://www.w3.org/WAI/standards-guidelines/wcag/
+- WCAG 3 (rascunho) — https://www.w3.org/TR/wcag-3.0/
+- ABNT NBR 17225:2025 (CTA/IFRS) —
+  https://cta.ifrs.edu.br/abnt-nbr-17225-2025-acessibilidade-em-conteudo-e-aplicacoes-web-requisitos/
+- eMAG 3.1 — https://emag.governoeletronico.gov.br/
+- Demais referências (fontes, DUA, ferramentas): [[file:documentation/acessibilidade.org][documentation/acessibilidade.org]]

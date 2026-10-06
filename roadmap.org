@@ -780,7 +780,7 @@ no Ler-gislação), ligado por padrão e ajustável por app no
 
 *** DONE A4.1 — Preferências (=accessibility-service=)
 - Tema, fonte e tamanho do texto no localStorage com o prefixo do app;
-  aplicados no =<html>= (=data-theme=, =data-font=, =--app-text-scale=)
+  aplicados no =<html>= (=data-theme=, =data-font=, =--a11y-text-scale=)
   antes do app montar. Valor fora da config volta ao padrão, campo a campo.
 
 *** DONE A4.2 — Temas de alto contraste
@@ -809,7 +809,18 @@ no Ler-gislação), ligado por padrão e ajustável por app no
   assíncronas (=voiceschanged=), voz pt-BR com fallback, gesto do usuário
   no iOS. Nunca iniciar sozinho (1.4.2); não encobrir o foco (2.4.11).
 
+*** DONE A4.7 — Módulo portátil =fzl-fund-appshell--lit/a11y=
+- =src/a11y/=: config, preferências (=createPreferences=, sem constante de
+  build), CSS de fontes/tamanho/movimento, =announce=, =focusElement=,
+  =setDocumentTitle=, contraste da WCAG 2.x e o plugin de fontes do Vite.
+  O appshell passa a consumi-lo; detalhes e limites em =wcag.org=.
+- Usados no shell: link "Ir para o conteúdo", título da aba por rota
+  (novo =route.title=), foco no =<main>= ao trocar de rota, anúncio de
+  queda/volta da conexão.
+- Teste de contraste dos quatro temas no Vitest (=src/styles/theme.test.js=).
+
 *** TODO A4.6 — Auditoria WCAG 2.2 / eMAG do próprio appshell
+Estado de cada critério: =wcag.org=.
 - Link "Ir para o conteúdo" e atalhos eMAG (1 conteúdo, 2 menu, 3 busca);
   página de acessibilidade.
 - Foco preso no drawer aberto, Esc fecha, foco volta ao botão de menu.

@@ -9,6 +9,7 @@ import './app-footer.js'
 import './app-header.js'
 import './auth-view.js'
 import './not-found-view.js'
+import { focusElement, setDocumentTitle } from '../a11y/index.js'
 import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
 import { accessibilityService } from '../services/accessibility-service.js'
@@ -23,6 +24,21 @@ import {
   navigateToLogin,
   navigateToSignup,
 } from '../router.js'
+
+/** Título da aba (WCAG 2.4.2) de cada rota do shell; as rotas do app
+ *  trazem o seu em route.title. Home fica só com o título do app. */
+const SHELL_ROUTE_TITLES = {
+  'conta-entrar': 'Entrar',
+  'conta-cadastro': 'Criar conta',
+  'conta-esqueci-senha': 'Esqueci minha senha',
+  'conta-redefinir-senha': 'Criar nova senha',
+  'conta-alterar-senha': 'Alterar senha',
+  conta: 'Minha conta',
+  'config-backend-servicos-rest': 'Serviços REST',
+  'config-acessibilidade': 'Acessibilidade',
+  'config-privacidade': 'Privacidade',
+  [NOT_FOUND]: 'Página não encontrada',
+}
 
 export class AppShell extends LitElement {
   static properties = {
@@ -50,6 +66,32 @@ export class AppShell extends LitElement {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
+    }
+    /* O foco vai para o <main> por script (link "Ir para o conteúdo" e
+       troca de rota) só para o leitor de tela começar dali; o anel em
+       volta da tela inteira não ajuda ninguém. */
+    main:focus {
+      outline: none;
+    }
+    /* Link "Ir para o conteúdo" (WCAG 2.4.1) — o mesmo de .a11y-skip-link
+       em src/a11y/a11y.css, repetido porque o CSS do documento não entra
+       no shadow DOM. Invisível até receber foco pelo teclado. */
+    .skip-link {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 1000;
+      padding: 12px 16px;
+      border-radius: 4px;
+      background: var(--md-sys-color-inverse-surface);
+      color: var(--md-sys-color-inverse-on-surface);
+      font-weight: 700;
+      transform: translateY(-200%);
+    }
+    .skip-link:focus {
+      transform: none;
+      outline: 2px solid var(--md-sys-color-inverse-primary);
+      outline-offset: 2px;
     }
     /* Cada região da página vira seu próprio contexto de empilhamento:
        um z-index qualquer lá dentro (ex.: tooltip de gráfico com
@@ -123,6 +165,7 @@ export class AppShell extends LitElement {
     this.footerItems = null
     this.analytics = { provider: 'none' }
     this._route = { name: 'home' }
+    this._routed = false
     this._drawerOpen = false
     this._updateAvailable = false
     this._user = null
@@ -157,6 +200,12 @@ export class AppShell extends LitElement {
       (route) => {
         this._route = route
         this._drawerOpen = false
+        setDocumentTitle(this._routeTitle(route), this.title)
+        // Na carga inicial o navegador já começa do topo; nas trocas de
+        // rota seguintes, o foco ficaria onde estava (num drawer que acabou
+        // de fechar) — leva-o à tela nova (WCAG 2.4.3).
+        if (this._routed) this.updateComplete.then(() => this._focusMain())
+        this._routed = true
         // Um page_view por rota resolvida. O gtag sozinho só contaria a
         // carga da página (ver analytics-service.js): como as rotas vivem
         // no hash, toda navegação depois da primeira seria invisível.
@@ -215,6 +264,17 @@ export class AppShell extends LitElement {
     }
   }
 
+  _routeTitle(route) {
+    const appRoute = this.routes.find((r) => r.name === route.name)
+    if (!appRoute) return SHELL_ROUTE_TITLES[route.name] ?? ''
+    const { title } = appRoute
+    return typeof title === 'function' ? title({ params: route.params, query: route.query }) : title
+  }
+
+  _focusMain() {
+    focusElement(this.shadowRoot.querySelector('main'))
+  }
+
   _selectDrawerItem(navigate) {
     navigate()
     this._drawerOpen = false
@@ -222,6 +282,16 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
+      <a
+        class="skip-link"
+        href="#"
+        @click=${(e) => {
+          e.preventDefault()
+          this._focusMain()
+        }}
+        >Ir para o conteúdo</a
+      >
+
       <app-header .heading=${this.title} @menu-toggle=${() => (this._drawerOpen = !this._drawerOpen)}>
         ${this.headerActions ? this.headerActions() : ''}
       </app-header>

@@ -72,6 +72,13 @@ describe('validateConfig', () => {
     )
   })
 
+  it('title da rota (aba do navegador, WCAG 2.4.2) é texto ou função', () => {
+    const route = (title) => ({ name: 'busca', match: noop, render: noop, title })
+    expect(() => validateConfig({ ...base, routes: [route('Busca')] })).not.toThrow()
+    expect(() => validateConfig({ ...base, routes: [route(({ params }) => params.id)] })).not.toThrow()
+    expect(() => validateConfig({ ...base, routes: [route(42)] })).toThrow(/"title" da rota "busca"/)
+  })
+
   it('recusa headerActions/footerItems que não sejam função', () => {
     expect(() => validateConfig({ ...base, headerActions: 'x' })).toThrow(/"headerActions"/)
     expect(() => validateConfig({ ...base, footerItems: 'x' })).toThrow(/"footerItems"/)

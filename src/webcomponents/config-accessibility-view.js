@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit'
-import { FONTS, THEMES } from '../accessibility-config.js'
+import { FONTS, THEMES } from '../a11y/config.js'
 import { accessibilityService } from '../services/accessibility-service.js'
 
 /** Config > Acessibilidade — tema (inclusive alto contraste), fonte e

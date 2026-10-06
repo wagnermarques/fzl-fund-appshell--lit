@@ -1,14 +1,13 @@
 /**
  * Opções de acessibilidade do app: quais fontes, temas e tamanhos de texto
- * o usuário pode escolher em Config > Acessibilidade, e o que vale antes de
- * ele escolher. Normas e referências por trás de cada opção:
- * documentation/acessibilidade.org.
+ * o usuário pode escolher, e o que vale antes de ele escolher. Normas e
+ * referências por trás de cada opção: documentation/acessibilidade.org.
  *
- * Módulo puro (sem DOM, sem lit) porque roda nos dois lados:
- * - no Vite (vite/preset.js), em *build* — só as fontes habilitadas entram
- *   no bundle e no precache do PWA;
- * - no navegador (accessibility-service.js), que recebe a config já
- *   resolvida pelo preset via __APPSHELL_ACCESSIBILITY__.
+ * Módulo puro (sem DOM, sem lit, sem constante de build) porque roda nos
+ * dois lados:
+ * - no Node, em *build* (./vite.js) — só as fontes habilitadas entram no
+ *   bundle e no precache do PWA;
+ * - no navegador (./preferences.js), que recebe a config já resolvida.
  */
 
 /** Fontes opcionais. 'system' (a fonte do sistema) está sempre disponível
@@ -30,7 +29,8 @@ export const FONTS = {
   },
 }
 
-/** Temas opcionais — o valor vira data-theme no <html> (ver theme.css).
+/** Temas opcionais — o valor vira data-theme no <html>. As cores de cada
+ *  tema ficam no CSS de quem usa (no appshell, src/styles/theme.css).
  *  'system' (segue prefers-color-scheme e prefers-contrast) está sempre
  *  disponível e não aparece aqui. */
 export const THEMES = {
@@ -70,8 +70,9 @@ function checkList(value, known, field) {
 }
 
 /**
- * Valida a opção `accessibility` de appshell.config.js e devolve a forma
- * normalizada { enabled, fonts, themes, textScales, defaults }.
+ * Valida as opções de acessibilidade (no appshell, a chave `accessibility`
+ * do appshell.config.js) e devolve a forma normalizada
+ * { enabled, fonts, themes, textScales, defaults }.
  *
  * Ausente = tudo ligado: acessibilidade opt-in acaba esquecida (mesmo
  * raciocínio do requireConsent: true do analytics). false desliga. Chave
@@ -129,7 +130,7 @@ export function resolveAccessibility(accessibility) {
 }
 
 /** Os imports de CSS das fontes habilitadas — conteúdo do módulo virtual
- *  'virtual:appshell-fonts' que o preset gera. */
+ *  que o plugin de ./vite.js gera. */
 export function fontImports(resolved) {
   return resolved.fonts.flatMap((id) => FONTS[id].css.map((file) => `${FONTS[id].package}/${file}`))
 }

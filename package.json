@@ -7,6 +7,9 @@
     ".": "./src/index.js",
     "./vite": "./vite/preset.js",
     "./config": "./src/config.js",
+    "./a11y": "./src/a11y/index.js",
+    "./a11y/vite": "./src/a11y/vite.js",
+    "./a11y/styles.css": "./src/a11y/a11y.css",
     "./styles/theme.css": "./src/styles/theme.css",
     "./webcomponents/*": "./src/webcomponents/*.js"
   },
