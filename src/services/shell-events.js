@@ -39,6 +39,12 @@ export const SHELL_EVENTS = {
   'consent:change': '{ consent } — granted | denied',
   'a11y:change': '{ preferences } — tema, fonte ou tamanho do texto mudou',
   'notification:new': '{ notification, userId } — notificação nova no sino do cabeçalho (notificationService.add)',
+  'push:permission-change': '{ permission } — granted | denied | default',
+  'push:subscribed': '{ subscription } — inscrição criada e entregue ao backend (push.onSubscribe)',
+  'push:unsubscribed': '{} — inscrição desfeita',
+  'push:subscription-change': '{ subscription } — o navegador trocou a inscrição; a nova já foi reentregue',
+  'push:received': '{ title, body, url, data } — push chegou com o app aberto (a notificação do sistema aparece igual)',
+  'push:clicked': '{ url, data, action } — o usuário tocou na notificação; o shell navega até url depois',
 }
 
 function requireKnown(name, where) {
@@ -159,6 +165,11 @@ export function bridgeNetwork(events, network) {
 /** notification:new a partir do notificationService. */
 export function bridgeNotifications(events, notifications) {
   return notifications.onAdd((notification, userId) => events.emit('notification:new', { notification, userId }))
+}
+
+/** push:* a partir do pushService. */
+export function bridgePush(events, push) {
+  return push.subscribe(({ type, ...detail }) => events.emit(`push:${type}`, detail))
 }
 
 /** consent:change e a11y:change (os dois serviços só avisam mudanças). */

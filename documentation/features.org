@@ -166,6 +166,12 @@ createAppShell({
 
   auth: meuProvedorDeAuth,            // Provedor customizado de autenticação (opcional)
 
+  push: {                             // Web Push (opcional; chave vazia desliga)
+    vapidPublicKey: import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY,
+    onSubscribe: (inscricao) => api.post('/push', inscricao),
+    onUnsubscribe: (inscricao) => api.delete('/push', inscricao)
+  },
+
   on: {                               // Listeners dos eventos do shell (opcional)
     'auth:login': ({ user, reason }) => carregarDados(user)
   },
@@ -269,6 +275,12 @@ shellEvents.onAny((nome, detalhe) => ...)
 | =consent:change=       | ={ consent }=                        | Consentimento de analytics mudou (=granted=/=denied=).        |
 | =a11y:change=          | ={ preferences }=                    | Tema, fonte ou tamanho do texto mudou.                        |
 | =notification:new=     | ={ notification, userId }=           | Notificação nova no sino do cabeçalho (=notificationService.add=). |
+| =push:permission-change= | ={ permission }=                   | Permissão de notificação mudou (=granted=/=denied=/=default=). |
+| =push:subscribed=      | ={ subscription }=                   | Push ativado e inscrição entregue ao backend.                 |
+| =push:unsubscribed=    | ={}=                                 | Push desativado.                                              |
+| =push:subscription-change= | ={ subscription }=               | O navegador trocou a inscrição; a nova já foi reentregue.     |
+| =push:received=        | ={ title, body, url, data }=         | Push chegou com o app aberto (a notificação do sistema aparece igual). |
+| =push:clicked=         | ={ url, data, action }=              | O usuário tocou na notificação; depois do evento o shell navega até =url=. |
 
 ** Regras
 - *Lista fechada*: nome fora de =SHELL_EVENTS= dá erro no =on()= e no =emit()=. Eventos de domínio do app ficam no próprio app.
@@ -276,6 +288,39 @@ shellEvents.onAny((nome, detalhe) => ...)
 - *Isolamento de erros*: listener que lança (ou promise rejeitada) vai para o console; os demais listeners e o shell seguem.
 - *Online ≠ internet*: =network:online= significa que o aparelho tem alguma rede, não que o backend responde.
 - *Sem log por padrão*: o shell não escreve no console; =debug: true= loga todos os eventos. O =demo/main.js= mostra um =on= completo só com =console.log=.
+
+---
+
+* Notificações Push (Web Push)
+
+Avisos do app com ele fechado. O shell cuida do navegador (permissão, inscrição, service worker, cliques); o *backend do app* guarda as inscrições e envia os pushes com a chave privada VAPID. Implementação: =src/services/push-service.js= (página) e =src/pwa/push-sw.js= (service worker).
+
+** Ligando
+1. Gere o par de chaves VAPID: =npx web-push generate-vapid-keys=. A pública vai em =VITE_PUSH_VAPID_PUBLIC_KEY=; a privada fica só no backend.
+2. Passe =push: { vapidPublicKey, onSubscribe, onUnsubscribe? }= ao =createAppShell=. =onSubscribe= recebe a inscrição em JSON (={ endpoint, keys: { p256dh, auth } }=) e a guarda no backend; se lançar, a inscrição é desfeita.
+3. O usuário liga em *Config > Notificações*. É o único lugar em que o shell pede a permissão: o pedido precisa nascer de um clique (Safari/iOS recusam fora dele).
+
+** Payload que o backend envia
+#+begin_src json
+{ "title": "Pedido 42", "body": "Saiu para entrega", "url": "#/pedidos/42",
+  "icon": "icons/icon-192.png", "tag": "pedido-42", "data": { "id": 42 },
+  "actions": [{ "action": "ver", "title": "Ver pedido" }] }
+#+end_src
+Só =title= é esperado; texto puro (não JSON) vira o =body=. =url= é para onde o clique leva.
+
+** Comportamento
+- *Push recebido*: o service worker sempre mostra a notificação do sistema (a inscrição é =userVisibleOnly=) e, com o app aberto, emite =push:received=.
+- *Clique*: com o app aberto, foca a aba, emite =push:clicked= e navega até =url=. Com o app fechado, abre já em =url= e emite =push:clicked= na carga, antes da primeira rota.
+- *Inscrição trocada pelo navegador* (=pushsubscriptionchange=): o service worker reinscreve; a página reentrega a nova ao =onSubscribe= — na hora, se estiver aberta, ou na próxima abertura (compara com o último endpoint entregue).
+- *Logout*: o shell não desliga o push sozinho. Se o app não deve avisar quem saiu, registre =auth:logout= → =pushService.disable()=.
+- *Service worker*: o preset do Vite publica =appshell-push-sw.js= e o carrega no =sw.js= por =importScripts= — o app continua no =generateSW=. No =npm run dev= não há service worker; teste com =npm run serve= e o botão "Push" do Chrome DevTools (Application > Service workers).
+
+** Limites
+- iOS/iPadOS: só com o app instalado na tela inicial (16.4+); a tela de Config explica isso.
+- Firefox entrega pelos servidores da Mozilla; Chrome, pelos do Google (FCM) — vale citar na política de privacidade.
+
+** API (=pushService=)
+=isConfigured()=, =isSupported()=, =isAvailable()=, =permission()=, =isActive()=, =enable()= (dentro de um clique), =disable()=, =subscribe(callback)=.
 
 ---
 

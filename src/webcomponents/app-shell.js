@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { registerSW } from 'virtual:pwa-register'
 import './config-accessibility-view.js'
+import './config-notifications-view.js'
 import './config-privacy-view.js'
 import './config-rest-services-view.js'
 import './consent-banner.js'
@@ -14,12 +15,14 @@ import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
 import { accessibilityService } from '../services/accessibility-service.js'
 import { consentService } from '../services/consent-service.js'
+import { pushService } from '../services/push-service.js'
 import { shellEvents } from '../services/shell-events.js'
 import {
   NOT_FOUND,
   createRouter,
   navigateToAccount,
   navigateToConfigAccessibility,
+  navigateToConfigNotifications,
   navigateToConfigPrivacy,
   navigateToConfigRestServices,
   navigateToLogin,
@@ -38,6 +41,7 @@ const SHELL_ROUTE_TITLES = {
   'config-backend-servicos-rest': 'Serviços REST',
   'config-acessibilidade': 'Acessibilidade',
   'config-privacidade': 'Privacidade',
+  'config-notificacoes': 'Notificações',
   [NOT_FOUND]: 'Página não encontrada',
 }
 
@@ -352,6 +356,17 @@ export class AppShell extends LitElement {
                           </md-list-item>
                         `
                       : ''}
+                    ${pushService.isConfigured()
+                      ? html`
+                          <md-list-item
+                            type="button"
+                            @click=${() => this._selectDrawerItem(navigateToConfigNotifications)}
+                          >
+                            <md-icon slot="start">notifications_active</md-icon>
+                            Notificações
+                          </md-list-item>
+                        `
+                      : ''}
                     ${this._asksConsent()
                       ? html`
                           <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToConfigPrivacy)}>
@@ -477,6 +492,14 @@ export class AppShell extends LitElement {
         // Sem GA4 (ou com requireConsent: false) não há o que configurar.
         if (this._asksConsent()) {
           return html`<config-privacy-view .privacyUrl=${this.analytics.privacyUrl}></config-privacy-view>`
+        }
+        return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
+      case 'config-notificacoes':
+        // Sem createAppShell({ push }) não há o que configurar. Sem suporte
+        // do navegador a tela aparece mesmo assim, para explicar o porquê
+        // (ex.: iOS sem o app instalado).
+        if (pushService.isConfigured()) {
+          return html`<config-notifications-view></config-notifications-view>`
         }
         return html`<not-found-view .path=${this._route.segments.join('/')}></not-found-view>`
       case NOT_FOUND:

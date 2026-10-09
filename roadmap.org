@@ -844,6 +844,16 @@ Estado de cada critério: =wcag.org=.
 - Ideia para depois: checagem real de alcance do backend (=network:online=
   hoje só quer dizer "tem alguma rede").
 
+*** DONE A5.1 — =notification:new= e Web Push (=push:*=)
+- =notification:new= a cada =notificationService.add()=.
+- Web Push: =createAppShell({ push: { vapidPublicKey, onSubscribe,
+  onUnsubscribe } })=, =pushService=, Config > Notificações e o
+  =appshell-push-sw.js= (=importScripts= no =sw.js= do Workbox). Eventos
+  =push:permission-change/subscribed/unsubscribed/subscription-change/
+  received/clicked=.
+- Falta o lado do servidor: guardar inscrições e enviar (entra no M4,
+  junto do backend opcional).
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.

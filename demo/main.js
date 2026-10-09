@@ -15,6 +15,16 @@ createAppShell({
     id: import.meta.env.VITE_GA4_MEASUREMENT_ID,
     cookiePrefix: __APP_STORAGE_PREFIX__,
   },
+  // Web Push: sem a variável (o normal no `npm run dev`), fica desligado. A
+  // demo não tem backend — onSubscribe só mostra a inscrição que um app de
+  // verdade enviaria ao servidor. Para testar a chegada de um push, use o
+  // botão "Push" do Chrome DevTools (Application > Service workers) no
+  // `npm run serve`.
+  push: {
+    vapidPublicKey: import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY,
+    onSubscribe: (subscription) => console.log('[demo] guardar no backend:', subscription),
+    onUnsubscribe: (subscription) => console.log('[demo] apagar do backend:', subscription.endpoint),
+  },
   // Eventos do shell (lista completa em SHELL_EVENTS). Aqui só logam; um
   // app de verdade carrega/limpa dados do usuário, pausa a fila de
   // sincronização sem rede, recarrega a tela quando o PWA volta ao
@@ -36,5 +46,11 @@ createAppShell({
     'consent:change': ({ consent }) => console.log(`[demo] consentimento: ${consent}`),
     'a11y:change': ({ preferences }) => console.log('[demo] acessibilidade:', preferences),
     'notification:new': ({ notification }) => console.log(`[demo] notificação: ${notification.title}`),
+    'push:permission-change': ({ permission }) => console.log(`[demo] permissão de push: ${permission}`),
+    'push:subscribed': () => console.log('[demo] push ativado'),
+    'push:unsubscribed': () => console.log('[demo] push desativado'),
+    'push:subscription-change': () => console.log('[demo] inscrição de push renovada'),
+    'push:received': ({ title, body }) => console.log(`[demo] push recebido: ${title} — ${body}`),
+    'push:clicked': ({ url, action }) => console.log(`[demo] push clicado (url: ${url}, ação: ${action})`),
   },
 })

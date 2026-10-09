@@ -16,6 +16,7 @@ describe('validateConfig', () => {
       footerItems: null,
       analytics: { provider: 'none' },
       auth: null,
+      push: null,
       on: {},
       debug: false,
     })
@@ -30,6 +31,16 @@ describe('validateConfig', () => {
     expect(() => validateConfig({ ...base, on: [] })).toThrow(/"on" deve ser um objeto/)
     expect(() => validateConfig({ ...base, on: { 'user:login': noop } })).toThrow(/não reconhece o evento "user:login"/)
     expect(() => validateConfig({ ...base, on: { 'auth:login': 'x' } })).toThrow(/on\["auth:login"\] deve ser uma função/)
+  })
+
+  it('push: chave vazia desliga; chave preenchida exige onSubscribe', () => {
+    expect(validateConfig({ ...base, push: { vapidPublicKey: '', onSubscribe: noop } }).push).toBe(null)
+    expect(() => validateConfig({ ...base, push: { vapidPublicKey: 'BAbc_-' } })).toThrow(/onSubscribe/)
+    expect(validateConfig({ ...base, push: { vapidPublicKey: 'BAbc_-', onSubscribe: noop } }).push).toEqual({
+      vapidPublicKey: 'BAbc_-',
+      onSubscribe: noop,
+      onUnsubscribe: undefined,
+    })
   })
 
   it('recusa "debug" que não é booleano', () => {

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bridgeAuth, bridgeNetwork, bridgeNotifications, bridgePreferences, createShellEvents } from './shell-events.js'
+import {
+  bridgeAuth,
+  bridgeNetwork,
+  bridgeNotifications,
+  bridgePreferences,
+  bridgePush,
+  createShellEvents,
+} from './shell-events.js'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -194,6 +201,20 @@ describe('bridgeNetwork e bridgePreferences', () => {
     bridgeNotifications(events, { onAdd: added.subscribe })
     added.push({ id: 'n1', title: 'Oi' }, 'u1')
     expect(log.mock.calls).toEqual([['notification:new', { notification: { id: 'n1', title: 'Oi' }, userId: 'u1' }]])
+  })
+
+  it('cada mudança do pushService vira push:<type>', () => {
+    const events = createShellEvents()
+    const push = fakeService()
+    const log = vi.fn()
+    events.onAny(log)
+    bridgePush(events, push)
+    push.push({ type: 'permission-change', permission: 'granted' })
+    push.push({ type: 'clicked', url: '#/x', data: {}, action: null })
+    expect(log.mock.calls).toEqual([
+      ['push:permission-change', { permission: 'granted' }],
+      ['push:clicked', { url: '#/x', data: {}, action: null }],
+    ])
   })
 
   it('consentimento e acessibilidade viram consent:change e a11y:change', () => {

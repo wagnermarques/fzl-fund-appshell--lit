@@ -26,6 +26,7 @@
  *   #/config/backend/servicos-rest      -> REST services base path config
  *   #/config/privacidade                -> consentimento do analytics
  *   #/config/acessibilidade             -> tema, fonte e tamanho do texto
+ *   #/config/notificacoes               -> ligar/desligar o Web Push
  */
 
 export const NOT_FOUND = 'not-found'
@@ -65,6 +66,7 @@ export const shellRoutes = [
   { name: 'config-backend-servicos-rest', match: pattern('config/backend/servicos-rest') },
   { name: 'config-privacidade', match: pattern('config/privacidade') },
   { name: 'config-acessibilidade', match: pattern('config/acessibilidade') },
+  { name: 'config-notificacoes', match: pattern('config/notificacoes') },
 ]
 
 // Redirecionamentos de confirmação de e-mail/magic link/reset de senha de
@@ -179,4 +181,8 @@ export function navigateToConfigPrivacy() {
 
 export function navigateToConfigAccessibility() {
   navigate('config/acessibilidade')
+}
+
+export function navigateToConfigNotifications() {
+  navigate('config/notificacoes')
 }

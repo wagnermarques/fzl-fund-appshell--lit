@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
 import { a11yFontsPlugin, resolveAccessibility } from '../src/a11y/vite.js'
 
@@ -25,8 +26,26 @@ import { a11yFontsPlugin, resolveAccessibility } from '../src/a11y/vite.js'
  * - VitePWA com registerType: 'prompt' e injectRegister: null (nunca troca
  *   a versão em uso sem avisar — app-shell.js registra manualmente e
  *   mostra o toast de atualização) e os campos de manifest comuns já
- *   preenchidos.
+ *   preenchidos;
+ * - o Web Push no service worker: src/pwa/push-sw.js sai no build como
+ *   appshell-push-sw.js e entra no sw.js por importScripts. Vai sempre (é
+ *   pequeno e inerte): quem liga o push é createAppShell({ push }).
  */
+
+const PUSH_SW_FILE = 'appshell-push-sw.js'
+const PUSH_SW_SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '../src/pwa/push-sw.js')
+
+/** Publica o script de push do service worker na raiz do build. */
+function pushServiceWorkerPlugin() {
+  return {
+    name: 'appshell:push-sw',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: PUSH_SW_FILE, source: readFileSync(PUSH_SW_SOURCE, 'utf-8') })
+    },
+  }
+}
+
 export function appshellConfig({
   base,
   manifest = {},
@@ -50,6 +69,7 @@ export function appshellConfig({
     },
     plugins: [
       a11yFontsPlugin(a11y, { id: 'virtual:appshell-fonts' }),
+      pushServiceWorkerPlugin(),
       VitePWA({
         registerType: 'prompt',
         injectRegister: null,
@@ -63,6 +83,7 @@ export function appshellConfig({
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,json,webmanifest,woff2}'],
           ...workbox,
+          importScripts: [PUSH_SW_FILE, ...(workbox.importScripts ?? [])],
         },
       }),
     ],

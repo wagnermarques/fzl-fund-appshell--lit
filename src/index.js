@@ -21,4 +21,6 @@ export { consentService } from './services/consent-service.js'
 export { accessibilityService }
 export { authService, localProvider } from './services/auth-service.js'
 export { networkService } from './services/network-service.js'
+export { notificationService } from './services/notification-service.js'
+export { pushService } from './services/push-service.js'
 export { SHELL_EVENTS, shellEvents } from './services/shell-events.js'

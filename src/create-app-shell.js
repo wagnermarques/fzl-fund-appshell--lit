@@ -10,11 +10,13 @@ import { authService, validateAuthProvider } from './services/auth-service.js'
 import { consentService } from './services/consent-service.js'
 import { networkService } from './services/network-service.js'
 import { notificationService } from './services/notification-service.js'
+import { pushService, validatePushConfig } from './services/push-service.js'
 import {
   SHELL_EVENTS,
   bridgeAuth,
   bridgeNetwork,
   bridgeNotifications,
+  bridgePush,
   bridgePreferences,
   shellEvents,
 } from './services/shell-events.js'
@@ -156,6 +158,7 @@ export function validateConfig(config) {
     footerItems = null,
     analytics = null,
     auth = null,
+    push = null,
     on = {},
     debug = false,
   } = config
@@ -194,6 +197,7 @@ export function validateConfig(config) {
     footerItems,
     analytics: validateAnalytics(analytics),
     auth,
+    push: validatePushConfig(push),
     on: validateListeners(on),
     debug,
   }
@@ -214,6 +218,7 @@ function connectEvents({ on, debug }) {
     bridgeAuth(shellEvents, authService),
     bridgeNetwork(shellEvents, networkService),
     bridgeNotifications(shellEvents, notificationService),
+    bridgePush(shellEvents, pushService),
     bridgePreferences(shellEvents, { consent: consentService, accessibility: accessibilityService }),
   )
   teardownEvents = () => offs.forEach((off) => off())
@@ -223,7 +228,8 @@ function connectEvents({ on, debug }) {
  *  e o título do app, instala o provedor de autenticação do app (auth —
  *  contrato no topo de services/auth-service.js) e registra os listeners
  *  dos eventos do shell (on — lista em services/shell-events.js; debug:
- *  true loga todos no console). mount pode ser um
+ *  true loga todos no console) e o Web Push (push — contrato em
+ *  services/push-service.js). mount pode ser um
  *  seletor CSS ou o próprio elemento container. Pressupõe que o custom element 'app-shell' já foi registrado
  *  (index.js cuida disso antes de expor esta função).
  *
@@ -233,7 +239,7 @@ function connectEvents({ on, debug }) {
  *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
  *  app jamais casaria. */
 export function createAppShell(config) {
-  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, on, debug } =
+  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, push, on, debug } =
     validateConfig(config)
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
@@ -248,6 +254,9 @@ export function createAppShell(config) {
   // auth:logout falso. Antes do <app-shell>: ele emite shell:ready e a
   // primeira rota ao conectar.
   connectEvents({ on, debug })
+  // Depois dos eventos: o clique em notificação que abriu o app do zero
+  // sai aqui como push:clicked.
+  pushService.use(push)
 
   const shell = document.createElement('app-shell')
   shell.routes = routes
