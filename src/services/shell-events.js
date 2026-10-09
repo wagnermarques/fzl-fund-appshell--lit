@@ -45,6 +45,9 @@ export const SHELL_EVENTS = {
   'push:subscription-change': '{ subscription } — o navegador trocou a inscrição; a nova já foi reentregue',
   'push:received': '{ title, body, url, data } — push chegou com o app aberto (a notificação do sistema aparece igual)',
   'push:clicked': '{ url, data, action } — o usuário tocou na notificação; o shell navega até url depois',
+  'backend:reachable': '{ backend, url } — o backend respondeu (de novo)',
+  'backend:unreachable': '{ backend, url, error } — o backend parou de responder (rede, tempo limite, 502/503/504)',
+  'backend:unauthorized': '{ backend, url, status } — o backend respondeu 401 (sessão vencida ou ausente)',
 }
 
 function requireKnown(name, where) {
@@ -170,6 +173,11 @@ export function bridgeNotifications(events, notifications) {
 /** push:* a partir do pushService. */
 export function bridgePush(events, push) {
   return push.subscribe(({ type, ...detail }) => events.emit(`push:${type}`, detail))
+}
+
+/** backend:* a partir do backendService. */
+export function bridgeBackends(events, backends) {
+  return backends.subscribe(({ type, ...detail }) => events.emit(`backend:${type}`, detail))
 }
 
 /** consent:change e a11y:change (os dois serviços só avisam mudanças). */

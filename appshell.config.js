@@ -29,4 +29,10 @@ export default defineAppShellConfig({
   push: {
     vapidPublicKey: '',
   },
+  // Os servidores do app. A url de cada um é sobrescrita por ambiente com
+  // VITE_APPSHELL_BACKENDS_<NOME>_URL; vazia = ainda não configurado (a
+  // demo não tem backend). Uso: backend('api').get('/pedidos').
+  backends: {
+    api: { url: '', auth: 'bearer', health: '/health' },
+  },
 })

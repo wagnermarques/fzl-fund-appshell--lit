@@ -23,7 +23,9 @@
  *   #/conta/esqueci-senha               -> pedir o link de redefinição
  *   #/conta/redefinir-senha?token=...   -> nova senha a partir do link
  *   #/conta/alterar-senha               -> trocar a senha (logado)
- *   #/config/backend/servicos-rest      -> REST services base path config
+ *   #/config/backend                    -> backends do app (endereço e estado)
+ *                                          (#/config/backend/servicos-rest, o
+ *                                          endereço antigo, cai aqui também)
  *   #/config/privacidade                -> consentimento do analytics
  *   #/config/acessibilidade             -> tema, fonte e tamanho do texto
  *   #/config/notificacoes               -> ligar/desligar o Web Push
@@ -63,7 +65,10 @@ export const shellRoutes = [
   { name: 'conta-redefinir-senha', match: pattern('conta/redefinir-senha') },
   { name: 'conta-alterar-senha', match: pattern('conta/alterar-senha') },
   { name: 'conta', match: pattern('conta') },
-  { name: 'config-backend-servicos-rest', match: pattern('config/backend/servicos-rest') },
+  {
+    name: 'config-backend',
+    match: (segments) => pattern('config/backend')(segments) ?? pattern('config/backend/servicos-rest')(segments),
+  },
   { name: 'config-privacidade', match: pattern('config/privacidade') },
   { name: 'config-acessibilidade', match: pattern('config/acessibilidade') },
   { name: 'config-notificacoes', match: pattern('config/notificacoes') },
@@ -171,8 +176,8 @@ export function navigateToAccount() {
   navigate('conta')
 }
 
-export function navigateToConfigRestServices() {
-  navigate('config/backend/servicos-rest')
+export function navigateToConfigBackend() {
+  navigate('config/backend')
 }
 
 export function navigateToConfigPrivacy() {

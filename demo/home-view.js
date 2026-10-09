@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit'
-import { restConfigService } from '../src/services/rest-config-service.js'
+import { backendService } from '../src/services/backend-service.js'
 
 /** Página inicial do app de demonstração deste próprio repositório: explica
  *  o propósito do appshell e resume os parâmetros de configuração atuais
@@ -73,7 +73,8 @@ export class HomeView extends LitElement {
   `
 
   render() {
-    const baseUrl = restConfigService.getBaseUrl()
+    const api = backendService.list().find((b) => b.name === 'api')
+    const baseUrl = api?.url ?? ''
     return html`
       <h1>Fund Appshell</h1>
       <p class="subtitle">Casca de aplicação de referência da família fzlbpms-funds</p>
@@ -95,20 +96,20 @@ export class HomeView extends LitElement {
 
       <h2>Parâmetros de configuração</h2>
       <p>
-        A configuração deste appshell vem das variáveis de ambiente do build (arquivos
-        <code>.env.local</code> / <code>.env.example</code>) — elas são a <strong>fonte da
-        verdade</strong>. A tela em <em>Config → Backend → Serviços REST</em> só exibe o valor
-        atual; ainda não é possível editá-lo pela interface.
+        A configuração deste appshell fica em um lugar só, o <code>appshell.config.js</code>;
+        cada ambiente sobrescreve o que precisa por variáveis <code>VITE_APPSHELL_*</code>
+        (veja <code>.env.example</code>). A tela em <em>Config → Backend</em> mostra os
+        endereços e se cada backend está respondendo — só leitura, de propósito.
       </p>
 
       <div class="config-card">
         <dl>
-          <dt>Serviços REST — base path</dt>
+          <dt>Backend "api" — endereço</dt>
           <dd class=${baseUrl ? '' : 'unset'}>
-            ${baseUrl || 'não definido — configure VITE_REST_API_BASE_URL em .env.local'}
+            ${baseUrl || 'não definido — configure VITE_APPSHELL_BACKENDS_API_URL em .env.local'}
           </dd>
         </dl>
-        <a href="#/config/backend/servicos-rest">Ver em Config → Backend → Serviços REST</a>
+        <a href="#/config/backend">Ver em Config → Backend</a>
       </div>
     `
   }

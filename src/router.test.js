@@ -78,7 +78,8 @@ describe('resolveRoute', () => {
       query: { token: 'abc' },
     })
     expect(resolveRoute('#/conta/alterar-senha').name).toBe('conta-alterar-senha')
-    expect(resolveRoute('#/config/backend/servicos-rest').name).toBe('config-backend-servicos-rest')
+    expect(resolveRoute('#/config/backend').name).toBe('config-backend')
+    expect(resolveRoute('#/config/backend/servicos-rest').name).toBe('config-backend') // endereço antigo
     expect(resolveRoute('#/config/privacidade').name).toBe('config-privacidade')
     expect(resolveRoute('#/config/acessibilidade').name).toBe('config-acessibilidade')
   })

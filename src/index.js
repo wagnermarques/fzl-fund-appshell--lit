@@ -20,6 +20,7 @@ export { analyticsService, track } from './services/analytics-service.js'
 export { consentService } from './services/consent-service.js'
 export { accessibilityService }
 export { authService, localProvider } from './services/auth-service.js'
+export { BackendError, backend, backendService } from './services/backend-service.js'
 export { networkService } from './services/network-service.js'
 export { notificationService } from './services/notification-service.js'
 export { pushService } from './services/push-service.js'

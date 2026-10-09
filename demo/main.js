@@ -43,5 +43,8 @@ createAppShell({
     'push:subscription-change': () => console.log('[demo] inscrição de push renovada'),
     'push:received': ({ title, body }) => console.log(`[demo] push recebido: ${title} — ${body}`),
     'push:clicked': ({ url, action }) => console.log(`[demo] push clicado (url: ${url}, ação: ${action})`),
+    'backend:reachable': ({ backend }) => console.log(`[demo] backend ${backend} respondendo`),
+    'backend:unreachable': ({ backend, error }) => console.log(`[demo] backend ${backend} fora: ${error}`),
+    'backend:unauthorized': ({ backend }) => console.log(`[demo] backend ${backend}: 401, mandar para o login`),
   },
 })

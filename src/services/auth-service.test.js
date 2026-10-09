@@ -170,6 +170,20 @@ describe('authService com provedor do app', () => {
     expect(authService.getCurrentUser()).toBe(null)
   })
 
+  it('getAccessToken: do provedor, só com alguém logado', async () => {
+    const provider = { signIn: async () => ({ id: '1' }), signOut: async () => {}, getAccessToken: vi.fn(async () => 'tok') }
+    authService.use(provider)
+    expect(await authService.getAccessToken()).toBe(null) // ninguém logado
+    await authService.signIn({ email: 'a@x.com', password: 'p' })
+    expect(await authService.getAccessToken()).toBe('tok')
+    authService.use({ signIn: async () => ({ id: '1' }), signOut: async () => {} })
+    await authService.signIn({ email: 'a@x.com', password: 'p' })
+    expect(await authService.getAccessToken()).toBe(null) // provedor sem a operação
+    expect(() => validateAuthProvider({ signIn: async () => null, signOut: async () => {}, getAccessToken: 'x' })).toThrow(
+      /getAccessToken/,
+    )
+  })
+
   it('avisa os inscritos com o motivo de cada mudança', async () => {
     const bia = { id: '1', name: 'Bia', email: 'bia@x.com' }
     let push

@@ -20,6 +20,7 @@
  *   title                -> VITE_APPSHELL_TITLE
  *   analytics.id         -> VITE_APPSHELL_ANALYTICS_ID
  *   push.vapidPublicKey  -> VITE_APPSHELL_PUSH_VAPID_PUBLIC_KEY
+ *   backends.api.url     -> VITE_APPSHELL_BACKENDS_API_URL
  *
  * (o nome é o caminho em MAIÚSCULAS_COM_SUBLINHADO, após VITE_APPSHELL_).
  * Os nomes antigos (VITE_GA4_MEASUREMENT_ID...) continuam valendo, abaixo
@@ -42,6 +43,7 @@ const KNOWN_KEYS = [
   'accessibility',
   'analytics',
   'push',
+  'backends',
   'debug',
   'base',
   'manifest',
@@ -50,11 +52,16 @@ const KNOWN_KEYS = [
 ]
 const BUILD_ONLY_KEYS = ['base', 'manifest', 'includeAssets', 'workbox', 'accessibility']
 const ANALYTICS_KEYS = ['provider', 'id', 'cookiePrefix', 'params', 'requireConsent', 'privacyUrl']
-const PUSH_KEYS = ['vapidPublicKey']
+const PUSH_KEYS = ['vapidPublicKey', 'backend', 'path']
+const BACKEND_KEYS = ['url', 'auth', 'health', 'timeoutMs']
+const BACKEND_AUTH = ['none', 'bearer']
+const BACKEND_NAME = /^[a-z][a-z0-9-]*$/
+export const DEFAULT_TIMEOUT_MS = 15000
 const ANALYTICS_PROVIDERS = ['none', 'ga4']
 const SECRET_KEY = /secret|passw|private|credential/i
 
-/** Caminhos que o ambiente pode sobrescrever. */
+/** Caminhos que o ambiente pode sobrescrever, além de backends.<nome>.url
+ *  de cada backend declarado (ver overridablePaths). */
 export const OVERRIDABLE_PATHS = ['title', 'analytics.id', 'analytics.privacyUrl', 'push.vapidPublicKey']
 
 /** Nomes antigos, aceitos abaixo dos VITE_APPSHELL_*. */
@@ -62,6 +69,16 @@ export const LEGACY_ENV = {
   title: 'VITE_APP_TITLE',
   'analytics.id': 'VITE_GA4_MEASUREMENT_ID',
   'push.vapidPublicKey': 'VITE_PUSH_VAPID_PUBLIC_KEY',
+  // Também cria o backend "api" quando o arquivo não o declara: era o
+  // único backend que o appshell conhecia antes de `backends` existir.
+  'backends.api.url': 'VITE_REST_API_BASE_URL',
+}
+
+/** Os caminhos sobrescrevíveis desta config: os fixos, a URL de cada
+ *  backend declarado e backends.api.url (do nome antigo). */
+export function overridablePaths(config) {
+  const backendUrls = Object.keys(config?.backends ?? {}).map((name) => `backends.${name}.url`)
+  return [...new Set([...OVERRIDABLE_PATHS, ...backendUrls, 'backends.api.url'])]
 }
 
 function fail(message) {
@@ -145,6 +162,32 @@ export function validateAnalytics(analytics, where = 'createAppShell') {
   return { provider: 'ga4', id, cookiePrefix, params, requireConsent, privacyUrl }
 }
 
+/** URL de backend: vazia (não configurado), absoluta http(s) ou caminho
+ *  da mesma origem ('/api', atrás do mesmo servidor ou do proxy do Vite). */
+function isBackendUrl(url) {
+  return url === '' || url.startsWith('/') || /^https?:\/\/[^/]/.test(url)
+}
+
+function validateBackends(backends) {
+  if (!isPlainObject(backends)) fail('"backends" deve ser um objeto { nome: { url, ... } }')
+  for (const [name, backend] of Object.entries(backends)) {
+    const where = `backends.${name}`
+    if (!BACKEND_NAME.test(name)) fail(`"${where}": nome deve ser minúsculo, começando por letra (ex.: "api", "arquivos")`)
+    if (!isPlainObject(backend)) fail(`"${where}" deve ser um objeto { url, auth?, health?, timeoutMs? }`)
+    requireKnownKeys(backend, BACKEND_KEYS, `${where}: `)
+    const { url, auth = 'none', health, timeoutMs } = backend
+    if (typeof url !== 'string') fail(`"${where}.url" é obrigatória (texto; vazia = ainda não configurado)`)
+    if (!isBackendUrl(url)) fail(`"${where}.url" deve começar com http://, https:// ou / — veio "${url}"`)
+    if (!BACKEND_AUTH.includes(auth)) fail(`"${where}.auth" deve ser "none" ou "bearer"`)
+    if (health !== undefined && (typeof health !== 'string' || !health.startsWith('/'))) {
+      fail(`"${where}.health" deve ser um caminho começando com / (ex.: "/health")`)
+    }
+    if (timeoutMs !== undefined && !(Number.isInteger(timeoutMs) && timeoutMs > 0)) {
+      fail(`"${where}.timeoutMs" deve ser um inteiro positivo (milissegundos)`)
+    }
+  }
+}
+
 /** Valida o appshell.config.js (as opções de acessibilidade ficam com
  *  resolveAccessibility, no defineAppShellConfig). Devolve a própria config. */
 export function validateAppConfig(config) {
@@ -152,7 +195,7 @@ export function validateAppConfig(config) {
   requireKnownKeys(config, KNOWN_KEYS, '')
   rejectSecrets(config)
 
-  const { title, storagePrefix, analytics, push, debug } = config
+  const { title, storagePrefix, analytics, push, backends, debug } = config
   optionalString(title, 'title')
   optionalString(storagePrefix, 'storagePrefix')
   if (storagePrefix === '') fail('"storagePrefix" não pode ser vazio (omita para usar o name do package.json)')
@@ -171,7 +214,17 @@ export function validateAppConfig(config) {
     if (push.vapidPublicKey && !VAPID_KEY_PATTERN.test(push.vapidPublicKey)) {
       fail('"push.vapidPublicKey" deve ser a chave *pública* VAPID em base64url')
     }
+    optionalString(push.backend, 'push.backend')
+    optionalString(push.path, 'push.path')
+    if (Boolean(push.backend) !== Boolean(push.path)) {
+      fail('"push.backend" e "push.path" andam juntos (o shell faz POST da inscrição em path, nesse backend)')
+    }
+    if (push.backend && !backends?.[push.backend]) {
+      fail(`"push.backend" aponta para "${push.backend}", que não está em "backends"`)
+    }
   }
+
+  if (backends !== undefined) validateBackends(backends)
 
   return config
 }
@@ -210,7 +263,7 @@ function setPath(object, path, value) {
  * Config mostra isso. Variável vazia não conta (VITE_X= no .env.example
  * não apaga o padrão do arquivo).
  */
-export function applyEnvOverrides(config, env = {}, paths = OVERRIDABLE_PATHS, legacy = LEGACY_ENV) {
+export function applyEnvOverrides(config, env = {}, paths = overridablePaths(config), legacy = LEGACY_ENV) {
   const result = structuredClone(config)
   const sources = {}
   for (const path of paths) {

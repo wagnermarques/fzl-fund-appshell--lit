@@ -3,7 +3,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './config-accessibility-view.js'
 import './config-notifications-view.js'
 import './config-privacy-view.js'
-import './config-rest-services-view.js'
+import './config-backend-view.js'
 import './consent-banner.js'
 import './nav-accordion.js'
 import './app-footer.js'
@@ -24,7 +24,7 @@ import {
   navigateToConfigAccessibility,
   navigateToConfigNotifications,
   navigateToConfigPrivacy,
-  navigateToConfigRestServices,
+  navigateToConfigBackend,
   navigateToLogin,
   navigateToSignup,
 } from '../router.js'
@@ -38,7 +38,7 @@ const SHELL_ROUTE_TITLES = {
   'conta-redefinir-senha': 'Criar nova senha',
   'conta-alterar-senha': 'Alterar senha',
   conta: 'Minha conta',
-  'config-backend-servicos-rest': 'Serviços REST',
+  'config-backend': 'Backend',
   'config-acessibilidade': 'Acessibilidade',
   'config-privacidade': 'Privacidade',
   'config-notificacoes': 'Notificações',
@@ -333,18 +333,11 @@ export class AppShell extends LitElement {
           ${this.drawer.shellSections.config
             ? html`
                 <nav-accordion label="Config">
-                  <nav-accordion label="Backend" nested>
-                    <md-list>
-                      <md-list-item
-                        type="button"
-                        @click=${() => this._selectDrawerItem(navigateToConfigRestServices)}
-                      >
-                        <md-icon slot="start">dns</md-icon>
-                        Serviços REST
-                      </md-list-item>
-                    </md-list>
-                  </nav-accordion>
                   <md-list>
+                    <md-list-item type="button" @click=${() => this._selectDrawerItem(navigateToConfigBackend)}>
+                      <md-icon slot="start">dns</md-icon>
+                      Backend
+                    </md-list-item>
                     ${accessibilityService.config.enabled
                       ? html`
                           <md-list-item
@@ -481,8 +474,8 @@ export class AppShell extends LitElement {
         return html`<auth-view mode="change"></auth-view>`
       case 'conta':
         return html`<auth-view></auth-view>`
-      case 'config-backend-servicos-rest':
-        return html`<config-rest-services-view></config-rest-services-view>`
+      case 'config-backend':
+        return html`<config-backend-view></config-backend-view>`
       case 'config-acessibilidade':
         if (accessibilityService.config.enabled) {
           return html`<config-accessibility-view></config-accessibility-view>`

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { validateConfig } from './create-app-shell.js'
+import { describe, expect, it, vi } from 'vitest'
+import { validateConfig, withPushBackend } from './create-app-shell.js'
 
 const noop = () => {}
 const base = { mount: '#app', home: noop, title: 'App' }
@@ -247,5 +247,32 @@ describe('validateConfig — auth', () => {
       /auth.resetPassword deve ser uma função/,
     )
     expect(() => validateConfig({ ...base, auth: { ...minimal, passwordMinLength: 0 } })).toThrow(/passwordMinLength/)
+  })
+})
+
+describe('withPushBackend', () => {
+  function fakeClient() {
+    const api = { post: vi.fn(async () => ({})), delete: vi.fn(async () => null) }
+    return { api, client: vi.fn(() => api) }
+  }
+
+  it('push.backend + path viram onSubscribe (POST) e onUnsubscribe (DELETE)', async () => {
+    const { api, client } = fakeClient()
+    const push = withPushBackend({ vapidPublicKey: 'B', backend: 'api', path: '/push' }, client)
+    const subscription = { endpoint: 'https://push/1' }
+    await push.onSubscribe(subscription)
+    await push.onUnsubscribe(subscription)
+    expect(client).toHaveBeenCalledWith('api')
+    expect(api.post).toHaveBeenCalledWith('/push', subscription)
+    expect(api.delete).toHaveBeenCalledWith('/push', { body: subscription })
+  })
+
+  it('callbacks do main.js vencem; sem backend, nada muda', () => {
+    const { client } = fakeClient()
+    const onSubscribe = () => {}
+    expect(withPushBackend({ backend: 'api', path: '/p', onSubscribe }, client).onSubscribe).toBe(onSubscribe)
+    const plain = { vapidPublicKey: 'B' }
+    expect(withPushBackend(plain, client)).toBe(plain)
+    expect(withPushBackend(null, client)).toBe(null)
   })
 })

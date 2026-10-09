@@ -4,9 +4,10 @@
  * DOM) e assim ser testável em Node puro.
  */
 
-import { mergeAppConfig, validateAnalytics } from './app-config.js'
+import { appConfig, mergeAppConfig, validateAnalytics } from './app-config.js'
 import { accessibilityService } from './services/accessibility-service.js'
 import { authService, validateAuthProvider } from './services/auth-service.js'
+import { backend, backendService } from './services/backend-service.js'
 import { consentService } from './services/consent-service.js'
 import { networkService } from './services/network-service.js'
 import { notificationService } from './services/notification-service.js'
@@ -14,6 +15,7 @@ import { pushService, validatePushConfig } from './services/push-service.js'
 import {
   SHELL_EVENTS,
   bridgeAuth,
+  bridgeBackends,
   bridgeNetwork,
   bridgeNotifications,
   bridgePush,
@@ -177,9 +179,28 @@ function connectEvents({ on, debug }) {
     bridgeNetwork(shellEvents, networkService),
     bridgeNotifications(shellEvents, notificationService),
     bridgePush(shellEvents, pushService),
+    bridgeBackends(shellEvents, backendService),
+    // Checagem de saúde dos backends quando faz sentido de novo: a rede
+    // voltou (sempre) ou o app voltou ao primeiro plano (no máximo a cada
+    // 30 s — ver backend-service.js).
+    shellEvents.on('network:online', () => backendService.checkAll({ force: true })),
+    shellEvents.on('app:visible', () => backendService.checkAll()),
     bridgePreferences(shellEvents, { consent: consentService, accessibility: accessibilityService }),
   )
   teardownEvents = () => offs.forEach((off) => off())
+}
+
+/** push.backend + push.path (do appshell.config.js) viram os callbacks
+ *  padrão: POST da inscrição em path, e DELETE no mesmo path ao desligar.
+ *  Callbacks passados no main.js vencem. */
+export function withPushBackend(push, client = backend) {
+  if (!push?.backend || !push.path) return push
+  const api = client(push.backend)
+  return {
+    onSubscribe: (subscription) => api.post(push.path, subscription),
+    onUnsubscribe: (subscription) => api.delete(push.path, { body: subscription }),
+    ...push,
+  }
 }
 
 /** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
@@ -199,8 +220,9 @@ function connectEvents({ on, debug }) {
 export function createAppShell(config) {
   // O que o app pôs no appshell.config.js (título, analytics, push...) vem
   // do build; o que veio aqui vence campo a campo.
+  const merged = mergeAppConfig(config)
   const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, push, on, debug } =
-    validateConfig(mergeAppConfig(config))
+    validateConfig({ ...merged, push: withPushBackend(merged?.push) })
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {
@@ -210,6 +232,7 @@ export function createAppShell(config) {
   // Antes de criar o <app-shell>: ele e o header já leem o usuário atual
   // ao conectar, e esse usuário tem de vir do provedor do app.
   if (auth) authService.use(auth)
+  backendService.use(appConfig.config.backends ?? {}, { getAccessToken: () => authService.getAccessToken() })
   // Depois do use(): a troca do provedor local pelo do app não vira um
   // auth:logout falso. Antes do <app-shell>: ele emite shell:ready e a
   // primeira rota ao conectar.
@@ -217,6 +240,7 @@ export function createAppShell(config) {
   // Depois dos eventos: o clique em notificação que abriu o app do zero
   // sai aqui como push:clicked.
   pushService.use(push)
+  backendService.checkAll({ force: true })
 
   const shell = document.createElement('app-shell')
   shell.routes = routes

@@ -46,7 +46,9 @@ export function validatePushConfig(config) {
     throw new Error('createAppShell: push.vapidPublicKey deve ser a chave pública VAPID em base64url')
   }
   if (typeof onSubscribe !== 'function') {
-    throw new Error('createAppShell: push.onSubscribe é obrigatório (é ele que entrega a inscrição ao backend)')
+    throw new Error(
+      'createAppShell: push.onSubscribe é obrigatório (é ele que entrega a inscrição ao backend) — ou declare push.backend + push.path no appshell.config.js',
+    )
   }
   if (onUnsubscribe !== undefined && typeof onUnsubscribe !== 'function') {
     throw new Error('createAppShell: push.onUnsubscribe deve ser uma função')

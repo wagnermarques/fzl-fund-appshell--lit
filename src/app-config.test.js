@@ -43,6 +43,53 @@ describe('validateAppConfig', () => {
   })
 })
 
+describe('backends', () => {
+  it('aceita a forma completa e a mínima', () => {
+    const backends = {
+      api: { url: 'https://api.test/v1', auth: 'bearer', health: '/health', timeoutMs: 5000 },
+      arquivos: { url: '/files' },
+      ainda: { url: '' },
+    }
+    expect(() => validateAppConfig({ backends, push: { backend: 'api', path: '/push' } })).not.toThrow()
+  })
+
+  it('recusa nome, url, auth, health e timeout inválidos, e opção desconhecida', () => {
+    const bad = (backend, name = 'api') => () => validateAppConfig({ backends: { [name]: backend } })
+    expect(bad({ url: 'x' }, 'Api')).toThrow(/minúsculo/)
+    expect(bad({})).toThrow(/"backends.api.url" é obrigatória/)
+    expect(bad({ url: 'api.test' })).toThrow(/deve começar com http/)
+    expect(bad({ url: '/a', auth: 'basic' })).toThrow(/"none" ou "bearer"/)
+    expect(bad({ url: '/a', health: 'health' })).toThrow(/começando com \//)
+    expect(bad({ url: '/a', timeoutMs: 0 })).toThrow(/inteiro positivo/)
+    expect(bad({ url: '/a', baseUrl: '/b' })).toThrow(/backends.api: "baseUrl"/)
+  })
+
+  it('push.backend precisa de path e de um backend declarado', () => {
+    expect(() => validateAppConfig({ push: { backend: 'api' } })).toThrow(/andam juntos/)
+    expect(() => validateAppConfig({ push: { backend: 'api', path: '/p' } })).toThrow(/não está em "backends"/)
+  })
+
+  it('cada backend declarado tem sua variável de url; o nome antigo cria o "api"', () => {
+    const file = { backends: { api: { url: 'http://localhost:8080' }, 'meus-arquivos': { url: '' } } }
+    const { config, sources } = applyEnvOverrides(file, {
+      VITE_APPSHELL_BACKENDS_API_URL: 'https://api.prod',
+      VITE_APPSHELL_BACKENDS_MEUS_ARQUIVOS_URL: 'https://files.prod',
+    })
+    expect(config.backends).toEqual({ api: { url: 'https://api.prod' }, 'meus-arquivos': { url: 'https://files.prod' } })
+    expect(sources['backends.meus-arquivos.url']).toBe('VITE_APPSHELL_BACKENDS_MEUS_ARQUIVOS_URL')
+
+    const legacy = resolveAppConfig({}, { env: { VITE_REST_API_BASE_URL: 'http://localhost:8080/api' } })
+    expect(legacy.config.backends).toEqual({ api: { url: 'http://localhost:8080/api' } })
+    expect(legacy.sources['backends.api.url']).toBe('VITE_REST_API_BASE_URL')
+  })
+
+  it('url inválida vinda do ambiente quebra o build', () => {
+    expect(() =>
+      resolveAppConfig({ backends: { api: { url: '' } } }, { env: { VITE_APPSHELL_BACKENDS_API_URL: 'api.prod' } }),
+    ).toThrow(/deve começar com http/)
+  })
+})
+
 describe('variáveis de ambiente', () => {
   it('nome = VITE_APPSHELL_ + caminho em MAIÚSCULAS_COM_SUBLINHADO', () => {
     expect(envName('title')).toBe('VITE_APPSHELL_TITLE')

@@ -864,14 +864,31 @@ Estado de cada critério: =wcag.org=.
   sobrescrita por =VITE_APPSHELL_*= com os nomes antigos ainda aceitos.
 - Detalhes em =documentation/features.org=.
 
+*** DONE A6.1 — =backends= e =backend()=
+- Backends declarados no =appshell.config.js= (=url=, =auth=, =health=,
+  =timeoutMs=), com a url sobrescrita por =VITE_APPSHELL_BACKENDS_<NOME>_URL=
+  (=VITE_REST_API_BASE_URL= vira o backend =api=).
+- Cliente =backend('api').get/post/...=: JSON, token do provedor
+  (=getAccessToken=, nova operação opcional), tempo limite, =BackendError=
+  com mensagem para o usuário; caminho de outra origem é recusado.
+- Eventos =backend:reachable/unreachable/unauthorized=; checagem ao abrir,
+  na volta da rede e na volta ao primeiro plano.
+- Config > Backend (somente leitura) substitui Config > Backend > Serviços
+  REST; =push: { backend, path }= entrega a inscrição sem código.
+
+*** TODO A6.2 — =runtime-config.json= (opcional)
+- Um build, vários ambientes: arquivo lido ao abrir o app, acima das
+  variáveis de build — para Docker e instalações no servidor do cliente.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.
 
 ** TODO [#B] M4 — Camada opcional de backend
-- =backend-client.js= condicional a env vars (seguir o padrão
-  =supabase-client.js=, mas nomeado de forma neutra caso o backend possa
-  mudar — ver decisão pendente sobre Supabase vs. adapter).
+- +=backend-client.js= condicional a env vars+ — feito no A6.1 como
+  =backends= + =backend()=, neutro quanto ao backend (resolve o "Supabase
+  vs. adapter" do lado do cliente HTTP).
+- Lado do servidor do Web Push (A5.1): guardar inscrições e enviar.
 - Um provedor de exemplo sobre o backend real, no contrato de
   =createAppShell({ auth })= (A3) — o =auth-service.js= já não muda.
 - =sync-service.js= com outbox, debounce, flush idempotente e status

@@ -102,7 +102,8 @@ O arquivo =src/router.js= provê um roteador leve baseado em hash (=location.has
    - =#/conta/redefinir-senha?token=...= -> Definição de nova senha
    - =#/conta/alterar-senha= -> Troca de senha autenticada
    - =#/conta= -> Perfil do usuário logado
-   - =#/config/backend/servicos-rest= -> Diagnóstico e URLs de endpoints REST
+   - =#/config/backend= -> Backends do app: endereço, origem e estado (=#/config/backend/servicos-rest=, o endereço antigo, também)
+   - =#/config/notificacoes= -> Ligar/desligar o Web Push
    - =#/config/privacidade= -> Gestão de consentimento de telemetria
 3. *Tratamento de Erros e 404*: Se nenhuma rota casar, o router ativa o estado =NOT_FOUND= exibindo o componente =<not-found-view>= (nunca cai silenciosamente na Home).
 4. *Interceptação de Callback de Autenticação*: Detecta e neutraliza hashes de provedores externos como Supabase (=#access_token=...= ou =#type=recovery=), direcionando automaticamente para a tela de conta ou redefinição de senha sem expor tokens sensíveis.
@@ -127,7 +128,10 @@ export default defineAppShellConfig({
   storagePrefix: 'meu-app',              // padrão: name do package.json
   accessibility: { fonts: ['atkinson'] },
   analytics: { requireConsent: true, privacyUrl: '#/privacidade' },
-  push: { vapidPublicKey: '' },          // cada ambiente põe a sua
+  push: { vapidPublicKey: '', backend: 'api', path: '/push/subscriptions' },
+  backends: {
+    api: { url: 'http://localhost:8080/api', auth: 'bearer', health: '/health' },
+  },
   debug: false,
 })
 #+end_src
@@ -153,6 +157,7 @@ O arquivo traz o padrão (normalmente o de desenvolvimento); cada ambiente sobre
 | =analytics.id=        | =VITE_APPSHELL_ANALYTICS_ID=          | =VITE_GA4_MEASUREMENT_ID=        |
 | =analytics.privacyUrl= | =VITE_APPSHELL_ANALYTICS_PRIVACY_URL= | —                                |
 | =push.vapidPublicKey= | =VITE_APPSHELL_PUSH_VAPID_PUBLIC_KEY= | =VITE_PUSH_VAPID_PUBLIC_KEY=     |
+| =backends.<nome>.url= | =VITE_APPSHELL_BACKENDS_<NOME>_URL=   | =VITE_REST_API_BASE_URL= (só =api=) |
 
 Valores vindos do ambiente passam pela mesma validação (um id do GA4 errado no CI quebra o build). O preset guarda de onde veio cada valor (=configSource(caminho)=), para as telas de Config mostrarem.
 
@@ -250,6 +255,7 @@ O aplicativo consumidor pode injetar seu próprio provedor (ex.: Supabase, Fireb
 | =resetPassword({ token, password })=   | Opcional   | Grava a nova senha usando o token recebido.                               |
 | =changePassword({ user, currentPassword, newPassword })= | Opcional | Troca de senha para usuário já autenticado.               |
 | =init({ setUser })=                    | Opcional   | Inicializa verificação de sessão e escuta mudanças em segundo plano. =setUser(user, reason?)= aceita um motivo opcional (ex.: ='expired'=), repassado aos eventos =auth:*=. |
+| =getAccessToken()=                     | Opcional   | Token de acesso de quem está logado (renovado, se o provedor renova). Os backends com =auth: 'bearer'= o mandam em =Authorization=. |
 | =passwordMinLength=                    | Opcional   | Tamanho mínimo exigido para senhas (padrão: 6).                            |
 
 ** Capacidades Dinâmicas da UI (=supports=)
@@ -325,6 +331,9 @@ shellEvents.onAny((nome, detalhe) => ...)
 | =push:subscription-change= | ={ subscription }=               | O navegador trocou a inscrição; a nova já foi reentregue.     |
 | =push:received=        | ={ title, body, url, data }=         | Push chegou com o app aberto (a notificação do sistema aparece igual). |
 | =push:clicked=         | ={ url, data, action }=              | O usuário tocou na notificação; depois do evento o shell navega até =url=. |
+| =backend:reachable=    | ={ backend, url }=                   | O backend respondeu (de novo).                                |
+| =backend:unreachable=  | ={ backend, url, error }=            | O backend parou de responder (rede, tempo limite, 502/503/504). |
+| =backend:unauthorized= | ={ backend, url, status }=           | O backend respondeu 401: sessão vencida ou ausente.           |
 
 ** Regras
 - *Lista fechada*: nome fora de =SHELL_EVENTS= dá erro no =on()= e no =emit()=. Eventos de domínio do app ficam no próprio app.
@@ -341,7 +350,7 @@ Avisos do app com ele fechado. O shell cuida do navegador (permissão, inscriç�
 
 ** Ligando
 1. Gere o par de chaves VAPID: =npx web-push generate-vapid-keys=. A pública vai em =VITE_PUSH_VAPID_PUBLIC_KEY=; a privada fica só no backend.
-2. Passe =push: { vapidPublicKey, onSubscribe, onUnsubscribe? }= ao =createAppShell=. =onSubscribe= recebe a inscrição em JSON (={ endpoint, keys: { p256dh, auth } }=) e a guarda no backend; se lançar, a inscrição é desfeita.
+2. Diga ao shell como entregar a inscrição ao backend. O jeito curto, no =appshell.config.js=: =push: { backend: 'api', path: '/push/subscriptions' }= — o shell faz =POST= da inscrição em =path= ao ligar e =DELETE= no mesmo =path= ao desligar. Para algo diferente, passe =push: { onSubscribe, onUnsubscribe? }= ao =createAppShell=: =onSubscribe= recebe a inscrição em JSON (={ endpoint, keys: { p256dh, auth } }=) e a guarda no backend. Nos dois casos, se a entrega falhar, a inscrição é desfeita.
 3. O usuário liga em *Config > Notificações*. É o único lugar em que o shell pede a permissão: o pedido precisa nascer de um clique (Safari/iOS recusam fora dele).
 
 ** Payload que o backend envia
@@ -477,10 +486,47 @@ Para permitir que múltiplas aplicações derivadas rodem na mesma origem (como 
 
 ---
 
-* Suporte a Serviços e Endpoints REST
+* Backends do App (=backends= e =backend()=)
 
-- *Serviço Declarativo (=rest-config-service.js=)*: Lê URLs e parâmetros de backend a partir de variáveis de ambiente (=VITE_REST_SERVICES_BASE_PATH=, etc.).
-- *Tela de Configurações (=<config-rest-services-view>=)*: Rota =#/config/backend/servicos-rest= permite verificar o status dos endpoints configurados e validar conectividade.
+O app declara seus servidores no =appshell.config.js= e os usa por nome. O shell sabe *onde* cada um está, *como entrar* nele e *se ele responde* — nada além: cache, fila offline e endpoints tipados ficam no app. Implementação: =src/services/backend-service.js=.
+
+** Declarando
+#+begin_src js
+backends: {
+  api:      { url: 'http://localhost:8080/api', auth: 'bearer', health: '/health', timeoutMs: 15000 },
+  arquivos: { url: '/files' },        // mesma origem; auth padrão: 'none'
+}
+#+end_src
+| Opção       | Padrão  | Descrição                                                                 |
+|-------------+---------+---------------------------------------------------------------------------|
+| =url=       | —       | Absoluta (=http(s)://=) ou caminho da mesma origem (=/api=). Vazia = ainda não configurado. Por ambiente: =VITE_APPSHELL_BACKENDS_<NOME>_URL=. |
+| =auth=      | =none=  | =bearer= manda =Authorization: Bearer <token>= com o =getAccessToken()= do provedor de auth. |
+| =health=    | —       | Caminho da checagem de saúde (=GET=, sem login). Sem ele, o estado só aparece após a primeira chamada. |
+| =timeoutMs= | =15000= | Tempo limite de cada chamada.                                             |
+
+** Usando
+#+begin_src js
+import { backend, BackendError } from 'fzl-fund-appshell--lit'
+
+const pedidos = await backend('api').get('/pedidos', { query: { status: 'aberto' } })
+await backend('api').post('/pedidos', novoPedido)       // objeto -> JSON
+await backend('arquivos').put('/foto', formData)        // FormData/Blob passam como vieram
+await backend('api').get('/lento', { timeoutMs: 60000, signal: controller.signal })
+#+end_src
+- Métodos: =get=, =delete=, =post=, =put=, =patch=, =request(método, caminho, opções)=. Opções: =query=, =body=, =headers=, =timeoutMs=, =signal=.
+- Resposta JSON vira objeto; outro tipo, texto; =204=, =null=.
+- O caminho é sempre relativo ao backend: uma URL de outra origem é recusada, para o token do usuário não sair para um host que o app não declarou.
+
+** Erros (=BackendError=)
+Mensagem pronta para o usuário (como o resto do shell) e, para o app decidir, =status=, =code= (=http=, =network=, =timeout=, =not-configured=, =bad-path=) e =body=. Em 400/409/422, a =message= do corpo da resposta é usada; 401, 403 e 5xx têm textos próprios e nunca mostram detalhes do servidor.
+
+** Estado e eventos
+- Cada backend fica =respondendo=, =não responde= ou =desconhecido=, pela checagem de saúde e por toda chamada normal (falha de rede, tempo limite e 502/503/504 contam como fora).
+- Mudanças saem como =backend:reachable= / =backend:unreachable=; um 401, como =backend:unauthorized= — o shell não manda para o login sozinho, o app decide.
+- Sem polling: o shell checa ao abrir, quando a rede volta e quando o app volta ao primeiro plano (no máximo a cada 30 s).
+
+** Tela Config > Backend
+Lista cada backend com endereço, *de onde ele veio* (=appshell.config.js= ou o nome da variável de ambiente), se manda o login, o tempo limite e o estado, com "Verificar agora". Somente leitura, de propósito: se o usuário pudesse trocar o endereço, bastaria convencê-lo a apontar para outro servidor para o token e os dados dele irem junto.
 
 ---
 
@@ -534,14 +580,21 @@ src/
 ├── create-app-shell.js          # Lógica de validação e montagem do shell
 ├── router.js                    # Hash router SPA genérico
 ├── storage-keys.js              # Gerenciador de prefixos de storage isolados
+├── app-config.js                # appshell.config.js: esquema, validação, ambiente, mescla
+├── config.js                    # defineAppShellConfig (fzl-fund-appshell--lit/config)
+├── pwa/
+│   └── push-sw.js               # Web Push no service worker (appshell-push-sw.js)
 ├── styles/
 │   └── theme.css                # Tokens de design Material 3 (claro/escuro)
 ├── services/
 │   ├── analytics-service.js     # Integração GA4 e sanitização de dados
 │   ├── auth-service.js          # Fachada de autenticação e provedor local
 │   ├── consent-service.js       # Controle de consentimento LGPD
+│   ├── backend-service.js       # Backends do app: cliente, token, saúde
 │   ├── notification-service.js  # Central de notificações por usuário
-│   └── rest-config-service.js   # Leitura de variáveis de serviços REST
+│   ├── network-service.js       # Estado de rede (online/offline, tipo)
+│   ├── push-service.js          # Web Push do lado da página
+│   └── shell-events.js          # Eventos do ciclo de vida (shellEvents)
 └── webcomponents/
     ├── app-shell.js             # Casca principal (layout, drawer, slots, router hook)
     ├── app-header.js            # Top bar fixa com título, ações e user status
@@ -555,7 +608,8 @@ src/
     ├── auth-view.js             # Telas de login, cadastro, esqueci e redefinir senha
     ├── consent-banner.js        # Banner de consentimento LGPD
     ├── config-privacy-view.js   # Painel de preferências de privacidade
-    ├── config-rest-services-view.js # Painel de status dos serviços REST
+    ├── config-backend-view.js   # Config > Backend: endereço, origem e estado
+    ├── config-notifications-view.js # Config > Notificações (Web Push)
     ├── not-found-view.js        # Página 404
     └── md-imports.js            # Registro consolidado dos componentes Material Web
 #+end_src

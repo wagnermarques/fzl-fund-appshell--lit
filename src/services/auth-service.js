@@ -32,6 +32,10 @@
 //       (services/shell-events.js): a primeira chamada vale 'restored', as
 //       seguintes 'external'. O provedor que souber mais pode dizer:
 //       setUser(null, 'expired').
+//   getAccessToken()                     -> token | null       (opcional)
+//       O token de acesso de quem está logado (renovado, se o provedor
+//       renova — ex.: keycloak.updateToken()). Os backends com
+//       auth: 'bearer' (backend-service.js) o mandam em Authorization.
 //   passwordMinLength                    número; padrão 6       (opcional)
 //   redirect                             booleano; padrão false (opcional)
 //       true para provedores que autenticam numa página própria (OAuth2/OIDC,
@@ -246,7 +250,7 @@ export function validateAuthProvider(candidate) {
       throw new Error(`createAppShell: auth.${name} é obrigatório e deve ser uma função`)
     }
   }
-  for (const name of [...PROVIDER_OPERATIONS, 'init']) {
+  for (const name of [...PROVIDER_OPERATIONS, 'init', 'getAccessToken']) {
     if (candidate[name] !== undefined && typeof candidate[name] !== 'function') {
       throw new Error(`createAppShell: auth.${name} deve ser uma função`)
     }
@@ -297,6 +301,13 @@ export const authService = {
 
   passwordMinLength() {
     return provider.passwordMinLength ?? DEFAULT_MIN_LENGTH
+  },
+
+  /** Token de acesso para os backends (auth: 'bearer'); null sem
+   *  usuário ou sem getAccessToken no provedor. */
+  async getAccessToken() {
+    if (!currentUser || typeof provider?.getAccessToken !== 'function') return null
+    return (await provider.getAccessToken()) ?? null
   },
 
   /** Síncrono — null quando ninguém está logado. */
