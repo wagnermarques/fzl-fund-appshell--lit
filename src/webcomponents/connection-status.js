@@ -1,10 +1,10 @@
 import { LitElement, html, css } from 'lit'
 import { announce } from '../a11y/index.js'
+import { networkService } from '../services/network-service.js'
 
-/** Bolinha + rótulo com o estado de rede: online/offline (via navigator.onLine
- *  + os eventos 'online'/'offline') e, quando o navegador expõe a Network
- *  Information API (hoje só browsers baseados em Chromium — Firefox/Safari
- *  não implementam), o tipo de conexão (wifi, cellular, 4g...).
+/** Bolinha + rótulo com o estado de rede: online/offline e, quando o
+ *  navegador informa, o tipo de conexão (wifi, cellular, 4g...) — ambos
+ *  vindos do networkService.
  *
  *  Cair e voltar a conexão são anunciados a leitores de tela (WCAG 4.1.3)
  *  — só a mudança, não o estado inicial nem a troca de tipo de rede. */
@@ -30,42 +30,25 @@ export class ConnectionStatus extends LitElement {
 
   constructor() {
     super()
-    this._online = navigator.onLine
-    this._kind = this._readConnectionKind()
-  }
-
-  _readConnectionKind() {
-    // `type` (wifi/cellular/ethernet...) responde exatamente "que tipo de
-    // rede", mas muitos browsers só implementam `effectiveType` (a
-    // categoria de velocidade: 4g/3g/2g/slow-2g) por razão de privacidade.
-    const conn = navigator.connection
-    return conn?.type && conn.type !== 'unknown' ? conn.type : conn?.effectiveType ?? null
+    this._online = networkService.isOnline()
+    this._kind = networkService.kind()
   }
 
   connectedCallback() {
     super.connectedCallback()
-    this._onOnline = () => {
-      this._online = true
-      this._kind = this._readConnectionKind()
-      announce('Conexão restabelecida')
-    }
-    this._onOffline = () => {
-      this._online = false
-      announce('Sem conexão. O app continua funcionando com o que já está em cache.')
-    }
-    this._onConnectionChange = () => {
-      this._kind = this._readConnectionKind()
-    }
-    window.addEventListener('online', this._onOnline)
-    window.addEventListener('offline', this._onOffline)
-    navigator.connection?.addEventListener('change', this._onConnectionChange)
+    this._online = networkService.isOnline()
+    this._kind = networkService.kind()
+    this._unsubscribe = networkService.subscribe(({ online, kind, change }) => {
+      this._online = online
+      this._kind = kind
+      if (change === 'online') announce('Conexão restabelecida')
+      if (change === 'offline') announce('Sem conexão. O app continua funcionando com o que já está em cache.')
+    })
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
-    window.removeEventListener('online', this._onOnline)
-    window.removeEventListener('offline', this._onOffline)
-    navigator.connection?.removeEventListener('change', this._onConnectionChange)
+    this._unsubscribe?.()
   }
 
   render() {

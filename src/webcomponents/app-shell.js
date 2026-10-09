@@ -14,6 +14,7 @@ import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
 import { accessibilityService } from '../services/accessibility-service.js'
 import { consentService } from '../services/consent-service.js'
+import { shellEvents } from '../services/shell-events.js'
 import {
   NOT_FOUND,
   createRouter,
@@ -174,7 +175,9 @@ export class AppShell extends LitElement {
     this._updateSW = registerSW({
       onNeedRefresh: () => {
         this._updateAvailable = true
+        shellEvents.emit('pwa:update-available')
       },
+      onOfflineReady: () => shellEvents.emit('pwa:offline-ready'),
       onRegisteredSW: (_url, registration) => {
         this._swRegistration = registration
         registration?.update()
@@ -205,6 +208,12 @@ export class AppShell extends LitElement {
         // rota seguintes, o foco ficaria onde estava (num drawer que acabou
         // de fechar) — leva-o à tela nova (WCAG 2.4.3).
         if (this._routed) this.updateComplete.then(() => this._focusMain())
+        shellEvents.emit('route:change', {
+          name: route.name,
+          params: route.params,
+          query: route.query,
+          initial: !this._routed,
+        })
         this._routed = true
         // Um page_view por rota resolvida. O gtag sozinho só contaria a
         // carga da página (ver analytics-service.js): como as rotas vivem
@@ -222,9 +231,14 @@ export class AppShell extends LitElement {
     this._onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         this._swRegistration?.update()
+        shellEvents.emit('app:visible')
+      } else {
+        shellEvents.emit('app:hidden')
       }
     }
     document.addEventListener('visibilitychange', this._onVisibilityChange)
+    this._onAppInstalled = () => shellEvents.emit('pwa:installed')
+    window.addEventListener('appinstalled', this._onAppInstalled)
   }
 
   disconnectedCallback() {
@@ -233,6 +247,7 @@ export class AppShell extends LitElement {
     this._unsubscribeAuth?.()
     this._unsubscribeConsent?.()
     document.removeEventListener('visibilitychange', this._onVisibilityChange)
+    window.removeEventListener('appinstalled', this._onAppInstalled)
   }
 
   firstUpdated() {
@@ -253,6 +268,8 @@ export class AppShell extends LitElement {
       }
     `
     drawer.shadowRoot.appendChild(style)
+
+    shellEvents.emit('shell:ready', { shell: this })
   }
 
   updated(changed) {

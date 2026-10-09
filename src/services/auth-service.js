@@ -28,6 +28,10 @@
 //   init({ setUser })                    -> função de limpeza (opcional)
 //       Chamado ao instalar: restaure a sessão salva e avise mudanças
 //       vindas de fora (outra aba, callback do provedor) com setUser(user).
+//       O motivo da mudança chega ao app nos eventos auth:login/auth:logout
+//       (services/shell-events.js): a primeira chamada vale 'restored', as
+//       seguintes 'external'. O provedor que souber mais pode dizer:
+//       setUser(null, 'expired').
 //   passwordMinLength                    número; padrão 6       (opcional)
 //   redirect                             booleano; padrão false (opcional)
 //       true para provedores que autenticam numa página própria (OAuth2/OIDC,
@@ -209,9 +213,12 @@ let provider = null
 let teardown = null
 let currentUser = null
 
-function setCurrentUser(user) {
+/** reason diz o porquê da mudança (signIn, signOut, restored...) e chega
+ *  aos inscritos como segundo argumento — ver bridgeAuth em
+ *  shell-events.js, que o transforma em auth:login/auth:logout. */
+function setCurrentUser(user, reason) {
   currentUser = user ?? null
-  listeners.forEach((fn) => fn(currentUser))
+  listeners.forEach((fn) => fn(currentUser, reason))
 }
 
 function normalizeEmail(email) {
@@ -261,8 +268,14 @@ export const authService = {
     teardown?.()
     teardown = null
     provider = newProvider
-    setCurrentUser(null)
-    const cleanup = provider.init?.({ setUser: (user) => provider === newProvider && setCurrentUser(user) })
+    setCurrentUser(null, 'providerChange')
+    let restored = false
+    const setUser = (user, reason) => {
+      if (provider !== newProvider) return
+      setCurrentUser(user, reason ?? (restored ? 'external' : 'restored'))
+      restored = true
+    }
+    const cleanup = provider.init?.({ setUser })
     if (typeof cleanup === 'function') teardown = cleanup
   },
 
@@ -291,7 +304,8 @@ export const authService = {
     return currentUser
   },
 
-  /** Chama o callback imediatamente com o usuário atual e depois a cada mudança. */
+  /** Chama o callback imediatamente com o usuário atual e depois a cada
+   *  mudança, com (user, reason) — reason é undefined na chamada inicial. */
   subscribe(callback) {
     listeners.add(callback)
     callback(currentUser)
@@ -313,19 +327,19 @@ export const authService = {
     requireEmail(email)
     const user = await provider.signUp({ name, email, password })
     signUpListeners.forEach((fn) => fn(user))
-    setCurrentUser(user)
+    setCurrentUser(user, 'signUp')
     return user
   },
 
   async signIn({ email, password }) {
     const user = await provider.signIn({ email: normalizeEmail(email), password })
-    setCurrentUser(user)
+    setCurrentUser(user, 'signIn')
     return user
   },
 
   async signOut() {
     await provider.signOut()
-    setCurrentUser(null)
+    setCurrentUser(null, 'signOut')
   },
 
   /** Pede o link de redefinição. redirectTo padrão: #/conta/redefinir-senha
@@ -341,7 +355,7 @@ export const authService = {
   async resetPassword({ token = null, password }) {
     requireOperation('resetPassword')
     const user = await provider.resetPassword({ token, password })
-    if (user) setCurrentUser(user)
+    if (user) setCurrentUser(user, 'passwordReset')
     return user ?? null
   },
 

@@ -164,7 +164,12 @@ createAppShell({
     privacyUrl: 'https://exemplo.com/privacidade'
   },
 
-  auth: meuProvedorDeAuth             // Provedor customizado de autenticação (opcional)
+  auth: meuProvedorDeAuth,            // Provedor customizado de autenticação (opcional)
+
+  on: {                               // Listeners dos eventos do shell (opcional)
+    'auth:login': ({ user, reason }) => carregarDados(user)
+  },
+  debug: false                        // true loga todos os eventos no console (opcional)
 })
 #+end_src
 
@@ -175,6 +180,7 @@ Garante consistência antes da montagem no DOM, emitindo erros descritivos para:
 - Seções do drawer sem =items= nem =render= (ou com ambos).
 - IDs de Measurement do GA4 com padrão inválido.
 - Provedores de autenticação fora da especificação mínima.
+- Eventos desconhecidos em =on= (ex.: =user:login= em vez de =auth:login=).
 
 ---
 
@@ -193,7 +199,7 @@ O aplicativo consumidor pode injetar seu próprio provedor (ex.: Supabase, Fireb
 | =requestPasswordReset({ email, redirectTo })= | Opcional | Inicia fluxo de recuperação de senha por e-mail.                          |
 | =resetPassword({ token, password })=   | Opcional   | Grava a nova senha usando o token recebido.                               |
 | =changePassword({ user, currentPassword, newPassword })= | Opcional | Troca de senha para usuário já autenticado.               |
-| =init({ setUser })=                    | Opcional   | Inicializa verificação de sessão e escuta mudanças em segundo plano.     |
+| =init({ setUser })=                    | Opcional   | Inicializa verificação de sessão e escuta mudanças em segundo plano. =setUser(user, reason?)= aceita um motivo opcional (ex.: ='expired'=), repassado aos eventos =auth:*=. |
 | =passwordMinLength=                    | Opcional   | Tamanho mínimo exigido para senhas (padrão: 6).                            |
 
 ** Capacidades Dinâmicas da UI (=supports=)
@@ -216,6 +222,59 @@ Subcomponentes para todas as etapas do ciclo de vida:
 - =reset=: Cadastro da nova senha após validação do token.
 - =change=: Formulário de troca de senha exigindo a senha atual.
 - =profile=: Exibição dos dados da conta atual e data de criação.
+
+---
+
+* Eventos do Ciclo de Vida (=shellEvents=)
+
+O app consumidor reage ao que acontece no shell (login, queda de rede, troca de rota...) sem conhecer os serviços por dentro. Implementação em =src/services/shell-events.js=.
+
+** Registrando listeners
+#+begin_src js
+import { createAppShell, shellEvents } from 'fzl-fund-appshell--lit'
+
+// Na configuração — registrados antes de o shell montar, então pegam a
+// sessão restaurada, a primeira rota e o shell:ready.
+createAppShell({
+  // ...
+  on: {
+    'auth:login': ({ user, reason }) => reason !== 'restored' && boasVindas(user),
+    'auth:logout': () => limparCachePrivado(),
+    'network:offline': () => filaDeSync.pausar(),
+  },
+})
+
+// Ou depois, de qualquer módulo. Devolve a função que remove o listener.
+const off = shellEvents.on('network:online', () => filaDeSync.enviar())
+shellEvents.once('shell:ready', ({ shell }) => ...)
+shellEvents.onAny((nome, detalhe) => ...)
+#+end_src
+
+** Eventos disponíveis
+| Evento                 | Detalhe                              | Quando                                                        |
+|------------------------+--------------------------------------+---------------------------------------------------------------|
+| =shell:ready=          | ={ shell }=                          | O =<app-shell>= renderizou pela primeira vez.                 |
+| =auth:login=           | ={ user, reason }=                   | Alguém entrou. =reason=: =signIn=, =signUp=, =passwordReset=, =restored= (sessão salva ao abrir o app), =external= (outra aba, retorno do Keycloak) ou o motivo dado pelo provedor. |
+| =auth:logout=          | ={ user, reason }=                   | Alguém saiu (=user= é quem saiu). =reason=: =signOut=, =providerChange=, =external= ou o do provedor (ex.: =expired=). |
+| =auth:signup=          | ={ user }=                           | Conta nova (vem antes do =auth:login= com =reason: 'signUp'=). |
+| =network:online=       | ={ online, kind }=                   | A conexão voltou.                                             |
+| =network:offline=      | ={ online, kind }=                   | A conexão caiu.                                               |
+| =network:change=       | ={ online, kind }=                   | Mudou o tipo de rede (wifi, 4g...) sem cair — só Chromium.    |
+| =route:change=         | ={ name, params, query, initial }=   | Rota resolvida; =initial= na carga da página.                 |
+| =app:visible=          | ={}=                                 | O app voltou ao primeiro plano (aba/PWA retomada).            |
+| =app:hidden=           | ={}=                                 | O app foi para o segundo plano.                               |
+| =pwa:update-available= | ={}=                                 | Há versão nova (o toast "Atualizar" aparece).                 |
+| =pwa:offline-ready=    | ={}=                                 | O service worker terminou o cache; o app já abre sem rede.    |
+| =pwa:installed=        | ={}=                                 | O usuário instalou o app.                                     |
+| =consent:change=       | ={ consent }=                        | Consentimento de analytics mudou (=granted=/=denied=).        |
+| =a11y:change=          | ={ preferences }=                    | Tema, fonte ou tamanho do texto mudou.                        |
+
+** Regras
+- *Lista fechada*: nome fora de =SHELL_EVENTS= dá erro no =on()= e no =emit()=. Eventos de domínio do app ficam no próprio app.
+- *Mudanças, não estado*: quem se registra depois não recebe o passado. O estado atual vem dos serviços (=authService.getCurrentUser()=, =networkService.isOnline()=, =networkService.kind()=).
+- *Isolamento de erros*: listener que lança (ou promise rejeitada) vai para o console; os demais listeners e o shell seguem.
+- *Online ≠ internet*: =network:online= significa que o aparelho tem alguma rede, não que o backend responde.
+- *Sem log por padrão*: o shell não escreve no console; =debug: true= loga todos os eventos. O =demo/main.js= mostra um =on= completo só com =console.log=.
 
 ---
 

@@ -169,4 +169,36 @@ describe('authService com provedor do app', () => {
     push({ id: 'velho' })
     expect(authService.getCurrentUser()).toBe(null)
   })
+
+  it('avisa os inscritos com o motivo de cada mudança', async () => {
+    const bia = { id: '1', name: 'Bia', email: 'bia@x.com' }
+    let push
+    const reasons = []
+    const off = authService.subscribe((user, reason) => reasons.push([user?.id ?? null, reason]))
+    authService.use({
+      signIn: async () => bia,
+      signOut: async () => {},
+      resetPassword: async () => bia,
+      init: ({ setUser }) => {
+        push = setUser
+        setUser(null)
+      },
+    })
+    await authService.signIn({ email: 'bia@x.com', password: 'p' })
+    await authService.signOut()
+    push(bia)
+    push(null, 'expired')
+    await authService.resetPassword({ password: 'nova' })
+    off()
+    expect(reasons).toEqual([
+      [null, undefined], // chamada inicial do subscribe
+      [null, 'providerChange'],
+      [null, 'restored'],
+      ['1', 'signIn'],
+      [null, 'signOut'],
+      ['1', 'external'],
+      [null, 'expired'],
+      ['1', 'passwordReset'],
+    ])
+  })
 })

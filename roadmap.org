@@ -830,6 +830,20 @@ Estado de cada critério: =wcag.org=.
   (=shellSections.config: false=, caso do app de GA4): atalho no cabeçalho?
 - axe-core nos testes; Orca/NVDA/TalkBack.
 
+** DONE [#A] A5 — Eventos do ciclo de vida para o app (=shellEvents=)
+- =createAppShell({ on, debug })= e =shellEvents.on/once/onAny=, com lista
+  fechada de eventos (=SHELL_EVENTS=): =shell:ready=, =auth:*=,
+  =network:*=, =route:change=, =app:visible/hidden=, =pwa:*=,
+  =consent:change=, =a11y:change=. Detalhes em
+  =documentation/features.org=.
+- =authService= passa a informar o motivo de cada mudança de usuário
+  (=signIn=, =restored=, =external=...); o provedor pode dar o seu em
+  =setUser(user, reason)=.
+- Rede vira =networkService=: os eventos existem mesmo com o rodapé
+  escondido; =<connection-status>= passa a consumi-lo.
+- Ideia para depois: checagem real de alcance do backend (=network:online=
+  hoje só quer dizer "tem alguma rede").
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.

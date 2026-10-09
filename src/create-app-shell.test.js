@@ -16,7 +16,24 @@ describe('validateConfig', () => {
       footerItems: null,
       analytics: { provider: 'none' },
       auth: null,
+      on: {},
+      debug: false,
     })
+  })
+
+  it('aceita listeners de eventos do shell em "on"', () => {
+    const on = { 'auth:login': noop, 'network:offline': noop }
+    expect(validateConfig({ ...base, on }).on).toBe(on)
+  })
+
+  it('recusa "on" com evento desconhecido ou listener que não é função', () => {
+    expect(() => validateConfig({ ...base, on: [] })).toThrow(/"on" deve ser um objeto/)
+    expect(() => validateConfig({ ...base, on: { 'user:login': noop } })).toThrow(/não reconhece o evento "user:login"/)
+    expect(() => validateConfig({ ...base, on: { 'auth:login': 'x' } })).toThrow(/on\["auth:login"\] deve ser uma função/)
+  })
+
+  it('recusa "debug" que não é booleano', () => {
+    expect(() => validateConfig({ ...base, debug: 'sim' })).toThrow(/"debug"/)
   })
 
   it('aceita um elemento como mount, não só um seletor', () => {

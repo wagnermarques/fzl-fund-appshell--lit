@@ -20,3 +20,5 @@ export { analyticsService, track } from './services/analytics-service.js'
 export { consentService } from './services/consent-service.js'
 export { accessibilityService }
 export { authService, localProvider } from './services/auth-service.js'
+export { networkService } from './services/network-service.js'
+export { SHELL_EVENTS, shellEvents } from './services/shell-events.js'

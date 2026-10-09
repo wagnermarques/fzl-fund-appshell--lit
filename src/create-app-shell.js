@@ -4,8 +4,18 @@
  * DOM) e assim ser testável em Node puro.
  */
 
+import { accessibilityService } from './services/accessibility-service.js'
 import { GA4_ID_PATTERN } from './services/analytics-service.js'
 import { authService, validateAuthProvider } from './services/auth-service.js'
+import { consentService } from './services/consent-service.js'
+import { networkService } from './services/network-service.js'
+import {
+  SHELL_EVENTS,
+  bridgeAuth,
+  bridgeNetwork,
+  bridgePreferences,
+  shellEvents,
+} from './services/shell-events.js'
 
 const SHELL_SECTION_NAMES = ['conta', 'config']
 const ANALYTICS_PROVIDERS = ['none', 'ga4']
@@ -112,6 +122,22 @@ function validateAnalytics(analytics) {
   return { provider: 'ga4', id, cookiePrefix, params, requireConsent, privacyUrl }
 }
 
+/** `on` é { 'nome:do-evento': listener }, com nomes de SHELL_EVENTS. */
+function validateListeners(on) {
+  if (on === null || typeof on !== 'object' || Array.isArray(on)) {
+    throw new Error('createAppShell: "on" deve ser um objeto { "evento": listener }')
+  }
+  for (const [name, fn] of Object.entries(on)) {
+    if (!Object.hasOwn(SHELL_EVENTS, name)) {
+      throw new Error(`createAppShell: on não reconhece o evento "${name}" (veja SHELL_EVENTS)`)
+    }
+    if (typeof fn !== 'function') {
+      throw new Error(`createAppShell: on["${name}"] deve ser uma função`)
+    }
+  }
+  return on
+}
+
 /** Valida a config de createAppShell() e devolve os campos normalizados. */
 export function validateConfig(config) {
   if (!config || typeof config !== 'object') {
@@ -128,6 +154,8 @@ export function validateConfig(config) {
     footerItems = null,
     analytics = null,
     auth = null,
+    on = {},
+    debug = false,
   } = config
 
   if (!mount) {
@@ -146,6 +174,10 @@ export function validateConfig(config) {
     throw new Error('createAppShell: "footerItems" deve ser uma função')
   }
 
+  if (typeof debug !== 'boolean') {
+    throw new Error('createAppShell: "debug" deve ser true ou false')
+  }
+
   validateRoutes(routes)
   // Sem auth, fica o provedor local de demonstração (auth-service.js).
   if (auth !== null) validateAuthProvider(auth)
@@ -160,12 +192,35 @@ export function validateConfig(config) {
     footerItems,
     analytics: validateAnalytics(analytics),
     auth,
+    on: validateListeners(on),
+    debug,
   }
 }
 
+// Desfaz os listeners e pontes da chamada anterior de createAppShell(),
+// para uma segunda chamada (ex.: remontar o app) não duplicar eventos.
+let teardownEvents = null
+
+/** Registra os listeners do app e liga os serviços aos eventos. A ordem
+ *  importa: listeners primeiro, pontes depois — bridgeAuth já emite o
+ *  auth:login 'restored' de quem estiver logado no momento. */
+function connectEvents({ on, debug }) {
+  teardownEvents?.()
+  const offs = Object.entries(on).map(([name, fn]) => shellEvents.on(name, fn))
+  if (debug) offs.push(shellEvents.onAny((name, detail) => console.info(`[appshell] ${name}`, detail)))
+  offs.push(
+    bridgeAuth(shellEvents, authService),
+    bridgeNetwork(shellEvents, networkService),
+    bridgePreferences(shellEvents, { consent: consentService, accessibility: accessibilityService }),
+  )
+  teardownEvents = () => offs.forEach((off) => off())
+}
+
 /** Cria e monta o <app-shell>, configurado com as rotas, a home, o drawer
- *  e o título do app, e instala o provedor de autenticação do app (auth —
- *  contrato no topo de services/auth-service.js). mount pode ser um
+ *  e o título do app, instala o provedor de autenticação do app (auth —
+ *  contrato no topo de services/auth-service.js) e registra os listeners
+ *  dos eventos do shell (on — lista em services/shell-events.js; debug:
+ *  true loga todos no console). mount pode ser um
  *  seletor CSS ou o próprio elemento container. Pressupõe que o custom element 'app-shell' já foi registrado
  *  (index.js cuida disso antes de expor esta função).
  *
@@ -175,7 +230,8 @@ export function validateConfig(config) {
  *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
  *  app jamais casaria. */
 export function createAppShell(config) {
-  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth } = validateConfig(config)
+  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, on, debug } =
+    validateConfig(config)
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {
@@ -185,6 +241,10 @@ export function createAppShell(config) {
   // Antes de criar o <app-shell>: ele e o header já leem o usuário atual
   // ao conectar, e esse usuário tem de vir do provedor do app.
   if (auth) authService.use(auth)
+  // Depois do use(): a troca do provedor local pelo do app não vira um
+  // auth:logout falso. Antes do <app-shell>: ele emite shell:ready e a
+  // primeira rota ao conectar.
+  connectEvents({ on, debug })
 
   const shell = document.createElement('app-shell')
   shell.routes = routes
