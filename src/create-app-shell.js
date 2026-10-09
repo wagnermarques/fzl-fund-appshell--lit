@@ -9,10 +9,12 @@ import { GA4_ID_PATTERN } from './services/analytics-service.js'
 import { authService, validateAuthProvider } from './services/auth-service.js'
 import { consentService } from './services/consent-service.js'
 import { networkService } from './services/network-service.js'
+import { notificationService } from './services/notification-service.js'
 import {
   SHELL_EVENTS,
   bridgeAuth,
   bridgeNetwork,
+  bridgeNotifications,
   bridgePreferences,
   shellEvents,
 } from './services/shell-events.js'
@@ -211,6 +213,7 @@ function connectEvents({ on, debug }) {
   offs.push(
     bridgeAuth(shellEvents, authService),
     bridgeNetwork(shellEvents, networkService),
+    bridgeNotifications(shellEvents, notificationService),
     bridgePreferences(shellEvents, { consent: consentService, accessibility: accessibilityService }),
   )
   teardownEvents = () => offs.forEach((off) => off())

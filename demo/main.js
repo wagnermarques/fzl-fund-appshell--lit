@@ -35,5 +35,6 @@ createAppShell({
     'pwa:installed': () => console.log('[demo] app instalado'),
     'consent:change': ({ consent }) => console.log(`[demo] consentimento: ${consent}`),
     'a11y:change': ({ preferences }) => console.log('[demo] acessibilidade:', preferences),
+    'notification:new': ({ notification }) => console.log(`[demo] notificação: ${notification.title}`),
   },
 })

@@ -38,6 +38,7 @@ export const SHELL_EVENTS = {
   'pwa:installed': '{} — o usuário instalou o app',
   'consent:change': '{ consent } — granted | denied',
   'a11y:change': '{ preferences } — tema, fonte ou tamanho do texto mudou',
+  'notification:new': '{ notification, userId } — notificação nova no sino do cabeçalho (notificationService.add)',
 }
 
 function requireKnown(name, where) {
@@ -153,6 +154,11 @@ export function bridgeNetwork(events, network) {
   return network.subscribe(({ online, kind, change }) => {
     events.emit(`network:${change}`, { online, kind })
   })
+}
+
+/** notification:new a partir do notificationService. */
+export function bridgeNotifications(events, notifications) {
+  return notifications.onAdd((notification, userId) => events.emit('notification:new', { notification, userId }))
 }
 
 /** consent:change e a11y:change (os dois serviços só avisam mudanças). */

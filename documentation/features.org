@@ -268,6 +268,7 @@ shellEvents.onAny((nome, detalhe) => ...)
 | =pwa:installed=        | ={}=                                 | O usuário instalou o app.                                     |
 | =consent:change=       | ={ consent }=                        | Consentimento de analytics mudou (=granted=/=denied=).        |
 | =a11y:change=          | ={ preferences }=                    | Tema, fonte ou tamanho do texto mudou.                        |
+| =notification:new=     | ={ notification, userId }=           | Notificação nova no sino do cabeçalho (=notificationService.add=). |
 
 ** Regras
 - *Lista fechada*: nome fora de =SHELL_EVENTS= dá erro no =on()= e no =emit()=. Eventos de domínio do app ficam no próprio app.

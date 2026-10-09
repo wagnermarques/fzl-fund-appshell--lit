@@ -10,6 +10,7 @@ import { storageKey } from '../storage-keys.js'
 const keyFor = (userId) => storageKey(`notifications:${userId}`)
 
 const listeners = new Set()
+const addListeners = new Set()
 let currentUserId = null
 let notifications = []
 
@@ -46,8 +47,9 @@ authService.onSignUp((user) => {
   })
 })
 
-// Mudanças feitas em outra aba do mesmo app.
-window.addEventListener('storage', (e) => {
+// Mudanças feitas em outra aba do mesmo app. (globalThis + ?.: importável
+// em Node, onde create-app-shell.js é testado.)
+globalThis.addEventListener?.('storage', (e) => {
   if (currentUserId && e.key === keyFor(currentUserId)) {
     notifications = read(currentUserId)
     emit()
@@ -70,7 +72,15 @@ export const notificationService = {
   add(userId, { title, body = '' }) {
     const item = { id: crypto.randomUUID(), title, body, read: false, createdAt: new Date().toISOString() }
     write(userId, [item, ...read(userId)])
+    addListeners.forEach((fn) => fn(item, userId))
     return item
+  },
+
+  /** Chama o callback com (notificação, userId) a cada add() desta aba —
+   *  vira o evento notification:new (ver shell-events.js). */
+  onAdd(callback) {
+    addListeners.add(callback)
+    return () => addListeners.delete(callback)
   },
 
   markRead(id) {
