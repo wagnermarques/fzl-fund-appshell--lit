@@ -2,26 +2,17 @@ import { html } from 'lit'
 import '../src/styles/theme.css'
 import './home-view.js'
 import { createAppShell } from '../src/index.js'
-import appshell from '../appshell.config.js'
 
+// Só o que é código. Título, analytics, chave do push... estão no
+// appshell.config.js, e o createAppShell() os recebe pelo build.
 createAppShell({
   mount: '#app',
-  title: appshell.title,
   home: () => html`<home-view></home-view>`,
-  // Cada app consumidor aponta para a sua própria propriedade do GA4. Sem
-  // a variável definida (o caso deste repo rodando como demo), o analytics
-  // simplesmente não liga.
-  analytics: {
-    id: import.meta.env.VITE_GA4_MEASUREMENT_ID,
-    cookiePrefix: __APP_STORAGE_PREFIX__,
-  },
-  // Web Push: sem a variável (o normal no `npm run dev`), fica desligado. A
-  // demo não tem backend — onSubscribe só mostra a inscrição que um app de
-  // verdade enviaria ao servidor. Para testar a chegada de um push, use o
-  // botão "Push" do Chrome DevTools (Application > Service workers) no
+  // A demo não tem backend — onSubscribe só mostra a inscrição que um app
+  // de verdade enviaria ao servidor. Para testar a chegada de um push, use
+  // o botão "Push" do Chrome DevTools (Application > Service workers) no
   // `npm run serve`.
   push: {
-    vapidPublicKey: import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY,
     onSubscribe: (subscription) => console.log('[demo] guardar no backend:', subscription),
     onUnsubscribe: (subscription) => console.log('[demo] apagar do backend:', subscription.endpoint),
   },

@@ -114,9 +114,53 @@ O arquivo =src/router.js= provê um roteador leve baseado em hash (=location.has
 
 ---
 
+* Configuração Central do App (=appshell.config.js=)
+
+Cada app tem um único arquivo com todos os seus *valores*: título, prefixo de storage, acessibilidade, analytics, push. O =main.js= fica só com o que é *código* (rotas, home, drawer, provedor de auth, listeners). Implementação: =src/app-config.js= (esquema, validação, ambiente) e =src/config.js= (=defineAppShellConfig=).
+
+#+begin_src js
+// appshell.config.js
+import { defineAppShellConfig } from 'fzl-fund-appshell--lit/config'
+
+export default defineAppShellConfig({
+  title: 'Meu App',
+  storagePrefix: 'meu-app',              // padrão: name do package.json
+  accessibility: { fonts: ['atkinson'] },
+  analytics: { requireConsent: true, privacyUrl: '#/privacidade' },
+  push: { vapidPublicKey: '' },          // cada ambiente põe a sua
+  debug: false,
+})
+#+end_src
+
+** Como chega ao navegador
+- O =vite.config.js= passa o arquivo ao preset: =appshellConfig({ ...appshell, manifest })=.
+- O preset aplica as variáveis de ambiente do modo atual, valida de novo e entrega tudo como a constante de build =__APPSHELL_CONFIG__=.
+- =createAppShell()= mescla sozinho (=mergeAppConfig=): o que o =main.js= passar vence campo a campo; =null= desliga o que o arquivo ligou.
+- =analytics.cookiePrefix= padrão é o =storagePrefix=; =manifest.name= padrão é o =title=.
+
+** Validação
+=defineAppShellConfig()= quebra o =vite dev=/=vite build= na hora para:
+- opção desconhecida, em qualquer seção (=titulo= no lugar de =title=);
+- tipos e formatos errados (id do GA4, chave VAPID);
+- *chave com nome de segredo* (=secret=, =password=, =private=, =credential=) em qualquer nível: o arquivo vai para o git e para o navegador de todo usuário.
+
+** Variáveis de ambiente
+O arquivo traz o padrão (normalmente o de desenvolvimento); cada ambiente sobrescreve sem editar o arquivo. Nome: =VITE_APPSHELL_= + o caminho em MAIÚSCULAS_COM_SUBLINHADO. Variável vazia não apaga o padrão.
+
+| Caminho               | Variável                              | Nome antigo (ainda aceito)       |
+|-----------------------+---------------------------------------+----------------------------------|
+| =title=               | =VITE_APPSHELL_TITLE=                 | =VITE_APP_TITLE=                 |
+| =analytics.id=        | =VITE_APPSHELL_ANALYTICS_ID=          | =VITE_GA4_MEASUREMENT_ID=        |
+| =analytics.privacyUrl= | =VITE_APPSHELL_ANALYTICS_PRIVACY_URL= | —                                |
+| =push.vapidPublicKey= | =VITE_APPSHELL_PUSH_VAPID_PUBLIC_KEY= | =VITE_PUSH_VAPID_PUBLIC_KEY=     |
+
+Valores vindos do ambiente passam pela mesma validação (um id do GA4 errado no CI quebra o build). O preset guarda de onde veio cada valor (=configSource(caminho)=), para as telas de Config mostrarem.
+
+---
+
 * Inicialização e Configuração Declarativa (=createAppShell=)
 
-O ponto de entrada principal do shell é a função =createAppShell(config)= em =src/create-app-shell.js=.
+O ponto de entrada principal do shell é a função =createAppShell(config)= em =src/create-app-shell.js=. Os valores do =appshell.config.js= já chegam mesclados; os campos abaixo podem ser passados aqui para sobrescrevê-los.
 
 ** Contrato de Configuração
 
@@ -428,7 +472,7 @@ export default defineAppShellConfig({
 Para permitir que múltiplas aplicações derivadas rodem na mesma origem (como =usuario.github.io/app1= e =usuario.github.io/app2=) sem compartilhar dados indevidamente no =localStorage=:
 
 - *Módulo =storage-keys.js=*: Fornece =storageKey(sufixo)=.
-- *Injeção em Build*: A constante =__APP_STORAGE_PREFIX__= é injetada automaticamente pelo preset do Vite com base no nome do =package.json= da aplicação consumidora.
+- *Injeção em Build*: A constante =__APP_STORAGE_PREFIX__= é injetada pelo preset do Vite: o =storagePrefix= do =appshell.config.js= ou, sem ele, o nome do =package.json= da aplicação consumidora.
 - Chaves geradas assumem o padrão: =<prefixo-do-app>:<categoria>:<nome>=.
 
 ---

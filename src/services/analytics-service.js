@@ -27,7 +27,7 @@
 import { href } from '../router.js'
 
 /** Measurement ID do GA4 (Admin > Fluxos de dados), no formato G-XXXXXXXXXX. */
-export const GA4_ID_PATTERN = /^G-[A-Z0-9]+$/i
+export { GA4_ID_PATTERN } from '../app-config.js'
 
 /** Chaves de query que nunca podem sair do navegador: links de confirmação
  *  de e-mail e de reset de senha chegam com o token na URL, e o

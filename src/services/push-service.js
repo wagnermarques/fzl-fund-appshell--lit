@@ -18,10 +18,10 @@
  * Mudanças viram { type, ...detalhe } para os inscritos, e daí os eventos
  * push:<type> (ver bridgePush em shell-events.js).
  */
+import { VAPID_KEY_PATTERN } from '../app-config.js'
 import { storageKey } from '../storage-keys.js'
 
 export const PUSH_CLICK_PARAM = 'appshell-push-click'
-const VAPID_KEY_PATTERN = /^[A-Za-z0-9_-]+=*$/
 
 /** Chave VAPID pública (base64url, como os geradores entregam) -> bytes. */
 export function urlBase64ToUint8Array(base64url) {

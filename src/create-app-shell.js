@@ -4,8 +4,8 @@
  * DOM) e assim ser testável em Node puro.
  */
 
+import { mergeAppConfig, validateAnalytics } from './app-config.js'
 import { accessibilityService } from './services/accessibility-service.js'
-import { GA4_ID_PATTERN } from './services/analytics-service.js'
 import { authService, validateAuthProvider } from './services/auth-service.js'
 import { consentService } from './services/consent-service.js'
 import { networkService } from './services/network-service.js'
@@ -22,7 +22,6 @@ import {
 } from './services/shell-events.js'
 
 const SHELL_SECTION_NAMES = ['conta', 'config']
-const ANALYTICS_PROVIDERS = ['none', 'ga4']
 
 function validateRoutes(routes) {
   const seen = new Set()
@@ -83,49 +82,6 @@ function validateDrawer(drawer) {
   return { sections, shellSections }
 }
 
-/** Valida analytics e devolve { provider: 'none' } ou a config do GA4.
- *
- *  requireConsent vale true por padrão: sob a LGPD o cookie do GA4 precisa
- *  de consentimento, e esquecer de pedir é o erro caro. privacyUrl, se
- *  houver, vira o link "Saiba mais" do banner.
- *
- *  id vazio/ausente desliga o analytics em vez de dar erro: um app passa
- *  `id: import.meta.env.VITE_GA4_MEASUREMENT_ID`, e essa variável
- *  normalmente não existe em desenvolvimento — quebrar o `npm run dev` por
- *  isso seria pior que rodar sem medição. Já um id *preenchido* e fora do
- *  formato é erro: aí é engano de digitação, e um id errado só se
- *  descobre semanas depois, quando o relatório aparece vazio. */
-function validateAnalytics(analytics) {
-  if (analytics === null || analytics === undefined) return { provider: 'none' }
-  if (typeof analytics !== 'object') {
-    throw new Error('createAppShell: "analytics" deve ser um objeto')
-  }
-
-  const { provider = 'ga4', id = '', cookiePrefix, params = {}, requireConsent = true, privacyUrl } = analytics
-
-  if (!ANALYTICS_PROVIDERS.includes(provider)) {
-    throw new Error(`createAppShell: analytics.provider não reconhece "${provider}" (use "ga4" ou "none")`)
-  }
-  if (provider === 'none' || !id) return { provider: 'none' }
-  if (!GA4_ID_PATTERN.test(id)) {
-    throw new Error(`createAppShell: analytics.id "${id}" não é um Measurement ID do GA4 (G-XXXXXXXXXX)`)
-  }
-  if (cookiePrefix !== undefined && typeof cookiePrefix !== 'string') {
-    throw new Error('createAppShell: analytics.cookiePrefix deve ser uma string')
-  }
-  if (typeof params !== 'object' || params === null) {
-    throw new Error('createAppShell: analytics.params deve ser um objeto')
-  }
-  if (typeof requireConsent !== 'boolean') {
-    throw new Error('createAppShell: analytics.requireConsent deve ser true ou false')
-  }
-  if (privacyUrl !== undefined && typeof privacyUrl !== 'string') {
-    throw new Error('createAppShell: analytics.privacyUrl deve ser uma string')
-  }
-
-  return { provider: 'ga4', id, cookiePrefix, params, requireConsent, privacyUrl }
-}
-
 /** `on` é { 'nome:do-evento': listener }, com nomes de SHELL_EVENTS. */
 function validateListeners(on) {
   if (on === null || typeof on !== 'object' || Array.isArray(on)) {
@@ -142,7 +98,9 @@ function validateListeners(on) {
   return on
 }
 
-/** Valida a config de createAppShell() e devolve os campos normalizados. */
+/** Valida a config de createAppShell() (já mesclada com o
+ *  appshell.config.js — ver mergeAppConfig) e devolve os campos
+ *  normalizados. */
 export function validateConfig(config) {
   if (!config || typeof config !== 'object') {
     throw new Error('createAppShell: config é obrigatório')
@@ -239,8 +197,10 @@ function connectEvents({ on, debug }) {
  *  deixaria o router preso à lista vazia do construtor, e nenhuma rota do
  *  app jamais casaria. */
 export function createAppShell(config) {
+  // O que o app pôs no appshell.config.js (título, analytics, push...) vem
+  // do build; o que veio aqui vence campo a campo.
   const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, push, on, debug } =
-    validateConfig(config)
+    validateConfig(mergeAppConfig(config))
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
   if (!container) {

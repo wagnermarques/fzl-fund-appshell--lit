@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { a11yFontsPlugin, resolveAccessibility } from '../src/a11y/vite.js'
+import { resolveAppConfig } from '../src/app-config.js'
 
 /**
  * Preset do Vite para quem usa este appshell como submódulo git + npm
@@ -27,6 +29,10 @@ import { a11yFontsPlugin, resolveAccessibility } from '../src/a11y/vite.js'
  *   a versão em uso sem avisar — app-shell.js registra manualmente e
  *   mostra o toast de atualização) e os campos de manifest comuns já
  *   preenchidos;
+ * - __APPSHELL_CONFIG__: o resto do appshell.config.js (título, analytics,
+ *   push...) com as variáveis de ambiente do modo atual já aplicadas
+ *   (VITE_APPSHELL_*, ver src/app-config.js), que o createAppShell()
+ *   mescla sozinho;
  * - o Web Push no service worker: src/pwa/push-sw.js sai no build como
  *   appshell-push-sw.js e entra no sw.js por importScripts. Vai sempre (é
  *   pequeno e inerte): quem liga o push é createAppShell({ push }).
@@ -34,6 +40,20 @@ import { a11yFontsPlugin, resolveAccessibility } from '../src/a11y/vite.js'
 
 const PUSH_SW_FILE = 'appshell-push-sw.js'
 const PUSH_SW_SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '../src/pwa/push-sw.js')
+
+/** Define __APPSHELL_CONFIG__. Plugin (e não um define direto) porque as
+ *  variáveis de ambiente dependem do modo (.env.production...), que só se
+ *  conhece no hook config. */
+function appConfigPlugin(appshell, packageName) {
+  return {
+    name: 'appshell:config',
+    config(userConfig, { mode }) {
+      const envDir = userConfig.envDir ?? userConfig.root ?? process.cwd()
+      const resolved = resolveAppConfig(appshell, { env: loadEnv(mode, envDir, 'VITE_'), packageName })
+      return { define: { __APPSHELL_CONFIG__: JSON.stringify(resolved) } }
+    },
+  }
+}
 
 /** Publica o script de push do service worker na raiz do build. */
 function pushServiceWorkerPlugin() {
@@ -46,14 +66,10 @@ function pushServiceWorkerPlugin() {
   }
 }
 
-export function appshellConfig({
-  base,
-  manifest = {},
-  storagePrefix,
-  includeAssets = ['favicon.svg'],
-  workbox = {},
-  accessibility,
-} = {}) {
+/** Recebe o appshell.config.js inteiro (normalmente com o manifest do
+ *  app junto: appshellConfig({ ...appshell, manifest })). */
+export function appshellConfig(appshell = {}) {
+  const { base, manifest = {}, storagePrefix, includeAssets = ['favicon.svg'], workbox = {}, accessibility, title } = appshell
   const a11y = resolveAccessibility(accessibility)
   const { name, version } = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf-8'))
 
@@ -68,6 +84,7 @@ export function appshellConfig({
       dedupe: ['lit', '@material/web'],
     },
     plugins: [
+      appConfigPlugin(appshell, name),
       a11yFontsPlugin(a11y, { id: 'virtual:appshell-fonts' }),
       pushServiceWorkerPlugin(),
       VitePWA({
@@ -78,6 +95,7 @@ export function appshellConfig({
           lang: 'pt-BR',
           start_url: '.',
           display: 'standalone',
+          ...(title ? { name: title, short_name: title } : {}),
           ...manifest,
         },
         workbox: {

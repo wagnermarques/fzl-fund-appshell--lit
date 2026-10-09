@@ -10,4 +10,9 @@ describe('defineAppShellConfig', () => {
   it('valida a acessibilidade já na definição', () => {
     expect(() => defineAppShellConfig({ accessibility: { fonts: ['arial'] } })).toThrow(/arial/)
   })
+
+  it('valida o resto do arquivo também (opções desconhecidas, segredos)', () => {
+    expect(() => defineAppShellConfig({ titulo: 'X' })).toThrow(/titulo/)
+    expect(() => defineAppShellConfig({ push: { vapidPrivateKey: 'x' } })).toThrow(/segredo/)
+  })
 })

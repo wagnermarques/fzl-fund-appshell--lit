@@ -854,6 +854,16 @@ Estado de cada critério: =wcag.org=.
 - Falta o lado do servidor: guardar inscrições e enviar (entra no M4,
   junto do backend opcional).
 
+** TODO [#A] A6 — Config central e backends do app
+
+*** DONE A6.0 — =appshell.config.js= como config central do app
+- O arquivo passa a guardar todos os valores do app (=title=,
+  =storagePrefix=, =analytics=, =push=, =debug=); o preset os entrega como
+  =__APPSHELL_CONFIG__= e o =createAppShell()= mescla sozinho.
+- Validação estrita (opção desconhecida, segredos proibidos) e
+  sobrescrita por =VITE_APPSHELL_*= com os nomes antigos ainda aceitos.
+- Detalhes em =documentation/features.org=.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.
