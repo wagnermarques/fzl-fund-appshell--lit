@@ -67,7 +67,8 @@ vida da aplicação.
 - *Seções Estruturais do Shell*:
   - /Conta/: Acesso rápido à gestão de perfil, alteração de senha e encerramento de sessão.
   - /Configurações/: Acesso aos serviços REST e painel de privacidade.
-  - Podem ser ativadas/desativadas individualmente via =drawer.shellSections: { conta, config }=.
+  - /Compartilhar este app/: Painel sanfonado para divulgação nas redes sociais mais populares no Brasil (WhatsApp, Telegram, Facebook, X, LinkedIn e Copiar link).
+  - Podem ser ativadas/desativadas individualmente via =drawer.shellSections: { conta, config, compartilhar }=.
 
 ** Rodapé (=<app-footer>=)
 - *Indicador de Conexão (=<connection-status>=)*: Monitora o estado de conectividade (Online/Offline) e o tipo de rede usando a Network Information API.
@@ -388,6 +389,51 @@ O serviço =notificationService= e o componente =<user-notifications>= gerenciam
 - *Isolamento e Persistência*: Cada usuário tem sua própria lista vinculada ao seu ID no =localStorage=.
 - *Sincronização entre Abas*: Ouvinte de evento =storage= atualiza a contagem instantaneamente se o usuário ler uma notificação em outra aba.
 - *Gatilho de Boas-Vindas*: Ao cadastrar nova conta, gera automaticamente uma notificação de boas-vindas.
+
+---
+
+* Compartilhamento Social ("Compartilhar este app")
+
+O appshell inclui no menu lateral (drawer) uma seção sanfonada padronizada para compartilhamento nas redes sociais e canais mais populares no Brasil.
+
+** Redes e canais suportados
+- *WhatsApp* (=whatsapp=): Envio direto de mensagem via Web/App API (=api.whatsapp.com/send=).
+- *Telegram* (=telegram=): Compartilhamento com texto e link via =t.me/share/url=.
+- *Facebook* (=facebook=): Compartilhador oficial via =facebook.com/sharer/sharer.php=.
+- *X (antigo Twitter)* (=x= ou alias =twitter=): Tweet formatado via =x.com/intent/tweet=.
+- *LinkedIn* (=linkedin=): Compartilhamento profissional via =linkedin.com/sharing/share-offsite=.
+- *Copiar link* (=copy= ou alias =clipboard=): Copia a URL para a área de transferência (=navigator.clipboard.writeText=) com anúncio de acessibilidade (=announce=) e feedback visual "Link copiado!".
+- *Mais opções* (=native=): Aciona a Web Share API nativa do dispositivo (=navigator.share=) onde disponível.
+- *E-mail* (=email=): Disparo de =mailto:= com assunto e corpo pré-preenchidos.
+
+** Configuração declarativa
+No =appshell.config.js= ou no =createAppShell()=:
+
+#+begin_src js
+// No appshell.config.js
+export default defineAppShellConfig({
+  title: 'Meu App',
+  share: {
+    enabled: true,                       // default: true (false desativa o painel)
+    title: 'Compartilhar este app',       // rótulo do acordeão (default: 'Compartilhar este app')
+    networks: ['whatsapp', 'telegram', 'facebook', 'x', 'linkedin', 'copy'], // redes exibidas
+    text: 'Confira este aplicativo!',    // mensagem opcional (default: title do app)
+    url: 'https://meuapp.com',           // url opcional (default: location.href)
+  }
+})
+
+// Ou desativação rápida via drawer.shellSections:
+createAppShell({
+  drawer: {
+    shellSections: { compartilhar: false }
+  }
+})
+#+end_src
+
+** Design e Acessibilidade
+- *Ícones SVG vetoriais*: Os logotipos oficiais utilizam preenchimento =fill="currentColor"= no =slot="start"= do =md-list-item=, adaptando-se instantaneamente a temas claros, escuros e alto contraste (WCAG AAA).
+- *Acessibilidade*: A cópia de link emite aviso para leitores de tela via =announce()= sem roubar o foco; links externos usam =rel="noopener noreferrer"=.
+- *Telemetria e Ciclo de Vida*: Cada clique em compartilhamento dispara o evento =share:click= no =shellEvents= e despacha o evento padrão =share= no Google Analytics 4.
 
 ---
 

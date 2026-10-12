@@ -48,6 +48,7 @@ export const SHELL_EVENTS = {
   'backend:reachable': '{ backend, url } — o backend respondeu (de novo)',
   'backend:unreachable': '{ backend, url, error } — o backend parou de responder (rede, tempo limite, 502/503/504)',
   'backend:unauthorized': '{ backend, url, status } — o backend respondeu 401 (sessão vencida ou ausente)',
+  'share:click': '{ network, url } — o usuário clicou em uma opção de compartilhamento',
 }
 
 function requireKnown(name, where) {

@@ -880,6 +880,19 @@ Estado de cada critério: =wcag.org=.
 - Um build, vários ambientes: arquivo lido ao abrir o app, acima das
   variáveis de build — para Docker e instalações no servidor do cliente.
 
+** DONE [#A] A7 — Compartilhamento social no drawer ("Compartilhar este app")
+CLOSED: [2026-10-12 seg]
+- Acordeão no menu lateral (=nav-accordion=) com as redes sociais mais
+  populares no Brasil: WhatsApp, Telegram, Facebook, X (Twitter), LinkedIn,
+  Copiar link (com =announce= para leitor de tela e aviso visual) e suporte
+  a Web Share API nativa e E-mail.
+- Configurável via =appshell.config.js= (=share: { enabled, title, networks,
+  text, url }=) e =createAppShell({ share })=, ou desativável via
+  =share: false= e =drawer.shellSections: { compartilhar: false }=.
+- Ícones SVG em =slot="start"= com =fill="currentColor"= para suporte a
+  todos os temas (claro, escuro e alto contraste WCAG AAA).
+- Evento =share:click= em =SHELL_EVENTS= e despacho para GA4.
+
 ** TODO [#B] M3 — storage-service genérico
 - Extrair só os helpers genéricos (=readJSON=/=writeJSON=, lista com
   chave, tema, escala de fonte) — sem nenhuma chave de domínio.

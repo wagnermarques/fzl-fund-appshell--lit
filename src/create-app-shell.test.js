@@ -17,6 +17,13 @@ describe('validateConfig', () => {
       analytics: { provider: 'none' },
       auth: null,
       push: null,
+      share: {
+        enabled: true,
+        title: 'Compartilhar este app',
+        networks: ['whatsapp', 'telegram', 'facebook', 'x', 'linkedin', 'copy'],
+        text: '',
+        url: '',
+      },
       on: {},
       debug: false,
     })
@@ -276,3 +283,52 @@ describe('withPushBackend', () => {
     expect(withPushBackend(null, client)).toBe(null)
   })
 })
+
+describe('validateConfig — share', () => {
+  it('desliga quando share é false ou null', () => {
+    expect(validateConfig({ ...base, share: false }).share).toEqual({ enabled: false })
+    expect(validateConfig({ ...base, share: null }).share).toEqual({ enabled: false })
+  })
+
+  it('aceita configuração customizada de redes e título', () => {
+    const share = {
+      enabled: true,
+      title: 'Divulgar',
+      networks: ['whatsapp', 'telegram'],
+      text: 'Confira!',
+      url: 'https://exemplo.com',
+    }
+    expect(validateConfig({ ...base, share }).share).toEqual(share)
+  })
+
+  it('normaliza aliases de redes (twitter -> x, clipboard -> copy)', () => {
+    const share = { networks: ['twitter', 'clipboard'] }
+    expect(validateConfig({ ...base, share }).share.networks).toEqual(['x', 'copy'])
+  })
+
+  it('recusa tipo inválido de share, networks não-array ou rede desconhecida', () => {
+    expect(() => validateConfig({ ...base, share: 'sim' })).toThrow(/"share" deve ser um objeto ou boolean/)
+    expect(() => validateConfig({ ...base, share: { enabled: 'sim' } })).toThrow(/share.enabled deve ser true ou false/)
+    expect(() => validateConfig({ ...base, share: { title: 123 } })).toThrow(/share.title deve ser uma string/)
+    expect(() => validateConfig({ ...base, share: { networks: 'whatsapp' } })).toThrow(/share.networks deve ser um array/)
+    expect(() => validateConfig({ ...base, share: { networks: ['orkut'] } })).toThrow(/não reconhece "orkut"/)
+  })
+
+  it('aceita compartilhar e share em drawer.shellSections', () => {
+    expect(
+      validateConfig({ ...base, drawer: { shellSections: { compartilhar: false } } }).drawer.shellSections,
+    ).toEqual({
+      conta: true,
+      config: true,
+      compartilhar: false,
+    })
+    expect(
+      validateConfig({ ...base, drawer: { shellSections: { share: false } } }).drawer.shellSections,
+    ).toEqual({
+      conta: true,
+      config: true,
+      share: false,
+    })
+  })
+})
+

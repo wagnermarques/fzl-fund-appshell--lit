@@ -23,7 +23,80 @@ import {
   shellEvents,
 } from './services/shell-events.js'
 
-const SHELL_SECTION_NAMES = ['conta', 'config']
+const SHELL_SECTION_NAMES = ['conta', 'config', 'compartilhar', 'share']
+
+export const DEFAULT_SHARE_NETWORKS = ['whatsapp', 'telegram', 'facebook', 'x', 'linkedin', 'copy']
+export const SUPPORTED_SHARE_NETWORKS = [
+  'whatsapp',
+  'telegram',
+  'facebook',
+  'x',
+  'twitter',
+  'linkedin',
+  'copy',
+  'clipboard',
+  'native',
+  'email',
+]
+
+export function validateShareConfig(share) {
+  if (share === false || share === null) {
+    return { enabled: false }
+  }
+  if (share === undefined || share === true) {
+    return {
+      enabled: true,
+      title: 'Compartilhar este app',
+      networks: [...DEFAULT_SHARE_NETWORKS],
+      text: '',
+      url: '',
+    }
+  }
+  if (typeof share !== 'object' || Array.isArray(share)) {
+    throw new Error('createAppShell: "share" deve ser um objeto ou boolean')
+  }
+
+  const {
+    enabled = true,
+    title = 'Compartilhar este app',
+    networks = DEFAULT_SHARE_NETWORKS,
+    text = '',
+    url = '',
+  } = share
+
+  if (typeof enabled !== 'boolean') {
+    throw new Error('createAppShell: share.enabled deve ser true ou false')
+  }
+  if (typeof title !== 'string') {
+    throw new Error('createAppShell: share.title deve ser uma string')
+  }
+  if (!Array.isArray(networks)) {
+    throw new Error('createAppShell: share.networks deve ser um array')
+  }
+  for (const net of networks) {
+    if (typeof net !== 'string' || !SUPPORTED_SHARE_NETWORKS.includes(net.toLowerCase())) {
+      throw new Error(
+        `createAppShell: share.networks não reconhece "${net}" (use ${DEFAULT_SHARE_NETWORKS.map((n) => `"${n}"`).join(', ')})`,
+      )
+    }
+  }
+  if (typeof text !== 'string') {
+    throw new Error('createAppShell: share.text deve ser uma string')
+  }
+  if (typeof url !== 'string') {
+    throw new Error('createAppShell: share.url deve ser uma string')
+  }
+
+  return {
+    enabled,
+    title: title || 'Compartilhar este app',
+    networks: networks.map((n) =>
+      n.toLowerCase() === 'twitter' ? 'x' : n.toLowerCase() === 'clipboard' ? 'copy' : n.toLowerCase(),
+    ),
+    text,
+    url,
+  }
+}
 
 function validateRoutes(routes) {
   const seen = new Set()
@@ -119,6 +192,7 @@ export function validateConfig(config) {
     analytics = null,
     auth = null,
     push = null,
+    share = undefined,
     on = {},
     debug = false,
   } = config
@@ -158,6 +232,7 @@ export function validateConfig(config) {
     analytics: validateAnalytics(analytics),
     auth,
     push: validatePushConfig(push),
+    share: validateShareConfig(share),
     on: validateListeners(on),
     debug,
   }
@@ -221,7 +296,7 @@ export function createAppShell(config) {
   // O que o app pôs no appshell.config.js (título, analytics, push...) vem
   // do build; o que veio aqui vence campo a campo.
   const merged = mergeAppConfig(config)
-  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, push, on, debug } =
+  const { mount, routes, home, title, drawer, headerActions, footerItems, analytics, auth, push, share, on, debug } =
     validateConfig({ ...merged, push: withPushBackend(merged?.push) })
 
   const container = typeof mount === 'string' ? document.querySelector(mount) : mount
@@ -250,6 +325,7 @@ export function createAppShell(config) {
   shell.headerActions = headerActions
   shell.footerItems = footerItems
   shell.analytics = analytics
+  shell.share = share
 
   container.replaceChildren(shell)
   return shell

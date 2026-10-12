@@ -54,12 +54,22 @@ import { validateAppConfig } from './app-config.js'
  * @typedef {object} AppShellPush
  * @property {string} [vapidPublicKey] Chave *pública* VAPID; vazia desliga. Por ambiente: VITE_APPSHELL_PUSH_VAPID_PUBLIC_KEY.
  *
+ * @typedef {'whatsapp' | 'telegram' | 'facebook' | 'x' | 'twitter' | 'linkedin' | 'copy' | 'clipboard' | 'native' | 'email'} AppShellShareNetwork
+ *
+ * @typedef {object} AppShellShare
+ * @property {boolean} [enabled] Mostra o acordeão "Compartilhar este app" no drawer (padrão: true).
+ * @property {string} [title] Rótulo do acordeão (padrão: 'Compartilhar este app').
+ * @property {AppShellShareNetwork[]} [networks] Redes sociais a exibir (padrão: WhatsApp, Telegram, Facebook, X, LinkedIn, Copiar link).
+ * @property {string} [text] Mensagem padrão ao compartilhar (padrão: título do app).
+ * @property {string} [url] URL padrão ao compartilhar (padrão: URL atual da página).
+ *
  * @typedef {object} AppShellConfig
  * @property {string} [title] Nome do app. Por ambiente: VITE_APPSHELL_TITLE.
  * @property {string} [storagePrefix] Prefixo do localStorage (padrão: o name do package.json).
  * @property {AppShellAccessibility | boolean} [accessibility] false desliga; ausente = tudo ligado.
  * @property {AppShellAnalytics} [analytics] Google Analytics 4.
  * @property {AppShellPush} [push] Web Push (os callbacks onSubscribe/onUnsubscribe ficam no createAppShell).
+ * @property {AppShellShare | boolean} [share] Configuração do painel de compartilhamento social.
  * @property {boolean} [debug] Loga os eventos do shell no console.
  * @property {string} [base] Opção de build: base do Vite.
  * @property {object} [manifest] Opção de build: campos do manifest do PWA (name padrão: title).

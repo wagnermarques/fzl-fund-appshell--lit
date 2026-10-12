@@ -170,4 +170,40 @@ describe('mergeAppConfig', () => {
     const config = { title: 'X' }
     expect(mergeAppConfig(config, {})).toEqual(config)
   })
+
+  it('mescla share do arquivo e do main.js, e false/null desliga', () => {
+    const fileWithShare = { ...file, share: { title: 'Compartilhar App', networks: ['whatsapp'] } }
+    expect(mergeAppConfig({ share: { networks: ['telegram'] } }, fileWithShare).share).toEqual({
+      title: 'Compartilhar App',
+      networks: ['telegram'],
+    })
+    expect(mergeAppConfig({ share: false }, fileWithShare).share).toBe(false)
+    expect(mergeAppConfig({ share: null }, fileWithShare).share).toBe(null)
+  })
 })
+
+describe('validateAppConfig — share', () => {
+  it('aceita share booleano ou objeto válido', () => {
+    expect(() => validateAppConfig({ share: true })).not.toThrow()
+    expect(() => validateAppConfig({ share: false })).not.toThrow()
+    expect(() =>
+      validateAppConfig({
+        share: {
+          enabled: true,
+          title: 'Compartilhe',
+          networks: ['whatsapp', 'telegram', 'facebook', 'x', 'linkedin', 'copy'],
+          text: 'Meu app',
+          url: 'https://app.test',
+        },
+      }),
+    ).not.toThrow()
+  })
+
+  it('recusa chave desconhecida em share ou tipo inválido', () => {
+    expect(() => validateAppConfig({ share: { extra: 1 } })).toThrow(/share: "extra" não é uma opção conhecida/)
+    expect(() => validateAppConfig({ share: 'sim' })).toThrow(/"share" deve ser um objeto ou boolean/)
+    expect(() => validateAppConfig({ share: { enabled: 'sim' } })).toThrow(/"share.enabled" deve ser true ou false/)
+    expect(() => validateAppConfig({ share: { networks: ['invalida'] } })).toThrow(/não reconhece "invalida"/)
+  })
+})
+

@@ -10,7 +10,7 @@ import './app-footer.js'
 import './app-header.js'
 import './auth-view.js'
 import './not-found-view.js'
-import { focusElement, setDocumentTitle } from '../a11y/index.js'
+import { announce, focusElement, setDocumentTitle } from '../a11y/index.js'
 import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
 import { accessibilityService } from '../services/accessibility-service.js'
@@ -169,6 +169,14 @@ export class AppShell extends LitElement {
     this.headerActions = null
     this.footerItems = null
     this.analytics = { provider: 'none' }
+    this.share = {
+      enabled: true,
+      title: 'Compartilhar este app',
+      networks: ['whatsapp', 'telegram', 'facebook', 'x', 'linkedin', 'copy'],
+      text: '',
+      url: '',
+    }
+    this._copied = false
     this._route = { name: 'home' }
     this._routed = false
     this._drawerOpen = false
@@ -372,6 +380,13 @@ export class AppShell extends LitElement {
                 </nav-accordion>
               `
             : ''}
+          ${this._isShareEnabled()
+            ? html`
+                <nav-accordion label=${this.share?.title || 'Compartilhar este app'}>
+                  <md-list>${this._renderShareItems()}</md-list>
+                </nav-accordion>
+              `
+            : ''}
         </div>
       </md-navigation-drawer-modal>
 
@@ -451,6 +466,152 @@ export class AppShell extends LitElement {
           </md-list-item>`
         : ''}
     `
+  }
+
+  _isShareEnabled() {
+    if (this.drawer.shellSections?.compartilhar === false || this.drawer.shellSections?.share === false) {
+      return false
+    }
+    return Boolean(this.share?.enabled && this.share?.networks?.length > 0)
+  }
+
+  _share(network) {
+    const url = this.share?.url || (typeof window !== 'undefined' ? window.location.href : '')
+    const text = this.share?.text || this.title || ''
+
+    shellEvents.emit('share:click', { network, url })
+    analyticsService.track('share', { method: network, content_type: 'app' })
+
+    if (network === 'copy') {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard
+          .writeText(url)
+          .then(() => {
+            announce('Link copiado para a área de transferência')
+            this._copied = true
+            this.requestUpdate()
+            setTimeout(() => {
+              this._copied = false
+              this.requestUpdate()
+            }, 2000)
+          })
+          .catch(() => {})
+      }
+      return
+    }
+
+    if (network === 'native') {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        navigator.share({ title: this.title, text, url }).catch(() => {})
+      }
+      this._drawerOpen = false
+      return
+    }
+
+    const shareUrls = {
+      whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(text ? `${text} ${url}` : url)}`,
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(url)}${text ? `&text=${encodeURIComponent(text)}` : ''}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      x: `https://x.com/intent/tweet?url=${encodeURIComponent(url)}${text ? `&text=${encodeURIComponent(text)}` : ''}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+      email: `mailto:?subject=${encodeURIComponent(this.title)}&body=${encodeURIComponent(text ? `${text} - ${url}` : url)}`,
+    }
+
+    const shareUrl = shareUrls[network]
+    if (shareUrl) {
+      if (typeof window !== 'undefined') {
+        window.open(shareUrl, '_blank', 'noopener,noreferrer')
+      }
+      this._drawerOpen = false
+    }
+  }
+
+  _renderShareIcon(network) {
+    switch (network) {
+      case 'whatsapp':
+        return html`
+          <svg slot="start" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 15 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67M9.53 7.34C9.36 7.34 9.09 7.4 8.87 7.65C8.65 7.89 8.02 8.48 8.02 9.7C8.02 10.92 8.91 12.09 9.03 12.26C9.15 12.42 10.74 14.88 13.2 15.94C15.24 16.82 15.66 16.64 16.11 16.6C16.55 16.56 17.54 16.01 17.74 15.44C17.95 14.88 17.95 14.39 17.89 14.29C17.83 14.19 17.66 14.13 17.41 14.01C17.16 13.88 15.93 13.28 15.7 13.2C15.48 13.11 15.31 13.07 15.15 13.32C14.99 13.56 14.52 14.13 14.38 14.29C14.23 14.45 14.09 14.47 13.84 14.35C13.6 14.23 12.79 13.97 11.84 13.12C11.1 12.46 10.6 11.64 10.46 11.39C10.31 11.15 10.44 11.01 10.57 10.89C10.68 10.78 10.82 10.6 10.95 10.45C11.08 10.3 11.12 10.19 11.21 10.03C11.3 9.86 11.25 9.72 11.19 9.6C11.13 9.47 10.64 8.27 10.44 7.77C10.24 7.29 10.04 7.35 9.88 7.35C9.74 7.34 9.57 7.34 9.53 7.34Z"
+            />
+          </svg>
+        `
+      case 'telegram':
+        return html`
+          <svg slot="start" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"
+            />
+          </svg>
+        `
+      case 'facebook':
+        return html`
+          <svg slot="start" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"
+            />
+          </svg>
+        `
+      case 'x':
+        return html`
+          <svg slot="start" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+            />
+          </svg>
+        `
+      case 'linkedin':
+        return html`
+          <svg slot="start" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"
+            />
+          </svg>
+        `
+      case 'copy':
+        return html`<md-icon slot="start">content_copy</md-icon>`
+      case 'native':
+        return html`<md-icon slot="start">share</md-icon>`
+      case 'email':
+        return html`<md-icon slot="start">mail</md-icon>`
+      default:
+        return html`<md-icon slot="start">share</md-icon>`
+    }
+  }
+
+  _shareLabel(network) {
+    switch (network) {
+      case 'whatsapp':
+        return 'WhatsApp'
+      case 'telegram':
+        return 'Telegram'
+      case 'facebook':
+        return 'Facebook'
+      case 'x':
+        return 'X (Twitter)'
+      case 'linkedin':
+        return 'LinkedIn'
+      case 'copy':
+        return this._copied ? 'Link copiado!' : 'Copiar link'
+      case 'native':
+        return 'Mais opções...'
+      case 'email':
+        return 'E-mail'
+      default:
+        return network
+    }
+  }
+
+  _renderShareItems() {
+    const networks = this.share?.networks || []
+    return networks.map(
+      (network) => html`
+        <md-list-item type="button" @click=${() => this._share(network)}>
+          ${this._renderShareIcon(network)}
+          ${this._shareLabel(network)}
+        </md-list-item>
+      `,
+    )
   }
 
   _renderRoute() {

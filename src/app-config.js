@@ -44,6 +44,7 @@ const KNOWN_KEYS = [
   'analytics',
   'push',
   'backends',
+  'share',
   'debug',
   'base',
   'manifest',
@@ -54,6 +55,19 @@ const BUILD_ONLY_KEYS = ['base', 'manifest', 'includeAssets', 'workbox', 'access
 const ANALYTICS_KEYS = ['provider', 'id', 'cookiePrefix', 'params', 'requireConsent', 'privacyUrl']
 const PUSH_KEYS = ['vapidPublicKey', 'backend', 'path']
 const BACKEND_KEYS = ['url', 'auth', 'health', 'timeoutMs']
+const SHARE_KEYS = ['enabled', 'title', 'networks', 'text', 'url']
+export const SUPPORTED_SHARE_NETWORKS = [
+  'whatsapp',
+  'telegram',
+  'facebook',
+  'x',
+  'twitter',
+  'linkedin',
+  'copy',
+  'clipboard',
+  'native',
+  'email',
+]
 const BACKEND_AUTH = ['none', 'bearer']
 const BACKEND_NAME = /^[a-z][a-z0-9-]*$/
 export const DEFAULT_TIMEOUT_MS = 15000
@@ -62,7 +76,14 @@ const SECRET_KEY = /secret|passw|private|credential/i
 
 /** Caminhos que o ambiente pode sobrescrever, além de backends.<nome>.url
  *  de cada backend declarado (ver overridablePaths). */
-export const OVERRIDABLE_PATHS = ['title', 'analytics.id', 'analytics.privacyUrl', 'push.vapidPublicKey']
+export const OVERRIDABLE_PATHS = [
+  'title',
+  'analytics.id',
+  'analytics.privacyUrl',
+  'push.vapidPublicKey',
+  'share.text',
+  'share.url',
+]
 
 /** Nomes antigos, aceitos abaixo dos VITE_APPSHELL_*. */
 export const LEGACY_ENV = {
@@ -195,7 +216,7 @@ export function validateAppConfig(config) {
   requireKnownKeys(config, KNOWN_KEYS, '')
   rejectSecrets(config)
 
-  const { title, storagePrefix, analytics, push, backends, debug } = config
+  const { title, storagePrefix, analytics, push, backends, share, debug } = config
   optionalString(title, 'title')
   optionalString(storagePrefix, 'storagePrefix')
   if (storagePrefix === '') fail('"storagePrefix" não pode ser vazio (omita para usar o name do package.json)')
@@ -225,6 +246,27 @@ export function validateAppConfig(config) {
   }
 
   if (backends !== undefined) validateBackends(backends)
+
+  if (share !== undefined) {
+    if (typeof share !== 'boolean') {
+      if (!isPlainObject(share)) fail('"share" deve ser um objeto ou boolean')
+      requireKnownKeys(share, SHARE_KEYS, 'share: ')
+      if (share.enabled !== undefined && typeof share.enabled !== 'boolean') {
+        fail('"share.enabled" deve ser true ou false')
+      }
+      optionalString(share.title, 'share.title')
+      optionalString(share.text, 'share.text')
+      optionalString(share.url, 'share.url')
+      if (share.networks !== undefined) {
+        if (!Array.isArray(share.networks)) fail('"share.networks" deve ser um array')
+        for (const net of share.networks) {
+          if (typeof net !== 'string' || !SUPPORTED_SHARE_NETWORKS.includes(net.toLowerCase())) {
+            fail(`"share.networks" não reconhece "${net}"`)
+          }
+        }
+      }
+    }
+  }
 
   return config
 }
@@ -325,6 +367,17 @@ export function mergeAppConfig(config, file = appConfig.config) {
   }
   if (config.push !== null && (file.push || config.push)) {
     merged.push = { ...file.push, ...config.push }
+  }
+  if (config.share !== null && (file.share !== undefined || config.share !== undefined)) {
+    if (config.share === false || (config.share === undefined && file.share === false)) {
+      merged.share = false
+    } else {
+      const fileShare = isPlainObject(file.share) ? file.share : (file.share ? { enabled: true } : {})
+      const configShare = isPlainObject(config.share) ? config.share : (config.share ? { enabled: true } : {})
+      merged.share = { ...fileShare, ...configShare }
+    }
+  } else if (config.share === null) {
+    merged.share = null
   }
   return merged
 }
