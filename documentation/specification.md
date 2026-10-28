@@ -126,10 +126,9 @@ Critério de pronto: *a definir*.
 
 ## 7. Pré-requisitos
 
-- [ ] `git init` + commit inicial no `fzl-fund-ui-widgets-components`.
-- [ ] Ajustes do item 5.1.
-- [ ] Ligar o appshell ao pacote via `file:` e consumir o `button` existente
-      como prova do encanamento.
+- [x] `git init` + commit inicial no `fzl-fund-ui-widgets-components`.
+- [x] Ajustes do item 5.1.
+- [x] Ligar o appshell ao pacote via `file:` e consumir `<fzl-lit-crumb>` (e `button`) no appshell.
 
 ---
 
