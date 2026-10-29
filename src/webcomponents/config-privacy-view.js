@@ -66,7 +66,6 @@ export class ConfigPrivacyView extends LitElement {
 
   render() {
     return html`
-      <p class="breadcrumb">Config &rsaquo; Privacidade</p>
       <h1>Privacidade</h1>
       <label>
         Permitir medição de uso (Google Analytics)

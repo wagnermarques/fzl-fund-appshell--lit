@@ -117,6 +117,16 @@ function validateRoutes(routes) {
     if (route.title !== undefined && typeof route.title !== 'string' && typeof route.title !== 'function') {
       throw new Error(`createAppShell: "title" da rota "${route.name}" deve ser texto ou ({ params, query }) => texto`)
     }
+    if (
+      route.crumb !== undefined &&
+      !Array.isArray(route.crumb) &&
+      typeof route.crumb !== 'function' &&
+      typeof route.crumb !== 'string'
+    ) {
+      throw new Error(
+        `createAppShell: "crumb" da rota "${route.name}" deve ser array, texto ou ({ params, query, segments }) => array|texto`,
+      )
+    }
   }
 }
 

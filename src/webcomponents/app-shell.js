@@ -8,8 +8,10 @@ import './consent-banner.js'
 import './nav-accordion.js'
 import './app-footer.js'
 import './app-header.js'
+import './app-crumb.js'
 import './auth-view.js'
 import './not-found-view.js'
+import { resolveRouteCrumbs } from './app-crumb.js'
 import { announce, focusElement, setDocumentTitle } from '../a11y/index.js'
 import { analyticsService } from '../services/analytics-service.js'
 import { authService } from '../services/auth-service.js'
@@ -20,6 +22,7 @@ import { shellEvents } from '../services/shell-events.js'
 import {
   NOT_FOUND,
   createRouter,
+  navigateHome,
   navigateToAccount,
   navigateToConfigAccessibility,
   navigateToConfigNotifications,
@@ -105,6 +108,7 @@ export class AppShell extends LitElement {
        aparecer por cima dele. isolation não cria bloco de contenção, então
        position: fixed dentro das views continua relativo à viewport. */
     app-header,
+    fzl-lit-crumb,
     main,
     consent-banner,
     app-footer {
@@ -116,6 +120,7 @@ export class AppShell extends LitElement {
        scrim opaco já a esconde, mas um componente com camadas internas
        próprias (ex.: md-text-button) pode escapar do empilhamento do
        drawer e continuar clicável. */
+    fzl-lit-crumb[inert],
     main[inert],
     consent-banner[inert],
     app-footer[inert] {
@@ -178,6 +183,8 @@ export class AppShell extends LitElement {
     }
     this._copied = false
     this._route = { name: 'home' }
+    this._history = []
+    this._goingBack = false
     this._routed = false
     this._drawerOpen = false
     this._updateAvailable = false
@@ -213,6 +220,12 @@ export class AppShell extends LitElement {
 
     this._unsubscribe = createRouter(
       (route) => {
+        const currentHash = typeof location !== 'undefined' ? location.hash || '#/' : '#/'
+        if (this._goingBack) {
+          this._goingBack = false
+        } else if (this._history.at(-1) !== currentHash) {
+          this._history = [...this._history, currentHash]
+        }
         this._route = route
         this._drawerOpen = false
         setDocumentTitle(this._routeTitle(route), this.title)
@@ -309,6 +322,28 @@ export class AppShell extends LitElement {
     this._drawerOpen = false
   }
 
+  _canGoBack() {
+    return this._history.length > 1 || (this._route?.name && this._route.name !== 'home')
+  }
+
+  _handleBack(e) {
+    e?.preventDefault()
+    if (this._history.length > 1) {
+      this._history = this._history.slice(0, -1)
+      const previousHash = this._history.at(-1) || '#/'
+      this._goingBack = true
+      location.hash = previousHash
+      return
+    }
+    const crumbs = resolveRouteCrumbs(this._route, this.routes)
+    const parentWithHref = [...crumbs.slice(0, -1)].reverse().find((c) => c.href)
+    if (parentWithHref?.href) {
+      location.hash = parentWithHref.href
+    } else {
+      navigateHome()
+    }
+  }
+
   render() {
     return html`
       <a
@@ -324,6 +359,13 @@ export class AppShell extends LitElement {
       <app-header .heading=${this.title} @menu-toggle=${() => (this._drawerOpen = !this._drawerOpen)}>
         ${this.headerActions ? this.headerActions() : ''}
       </app-header>
+
+      <fzl-lit-crumb
+        ?inert=${this._drawerOpen}
+        .items=${resolveRouteCrumbs(this._route, this.routes)}
+        ?back-disabled=${!this._canGoBack()}
+        @fzl-back=${(e) => this._handleBack(e)}
+      ></fzl-lit-crumb>
 
       <md-navigation-drawer-modal
         .opened=${this._drawerOpen}

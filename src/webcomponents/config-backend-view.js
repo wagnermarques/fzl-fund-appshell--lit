@@ -157,7 +157,6 @@ export class ConfigBackendView extends LitElement {
   render() {
     const backends = backendService.list()
     return html`
-      <p class="breadcrumb">Config &rsaquo; Backend</p>
       <h1>Backend</h1>
       <p class="hint">
         Os servidores que este app usa. Os endereços são definidos pelo app — em

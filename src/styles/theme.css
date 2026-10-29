@@ -334,6 +334,26 @@
 :root {
   --md-ref-typeface-brand: var(--a11y-font-family);
   --md-ref-typeface-plain: var(--a11y-font-family);
+
+  /* Ponte para @fzl/design-tokens: todo componente <fzl-*> herda o tema
+     claro/escuro/alto-contraste e a fonte de acessibilidade do appshell. */
+  --fzl-font-family: var(--a11y-font-family);
+  --fzl-color-primary: var(--md-sys-color-primary);
+  --fzl-color-primary-hover: var(--md-sys-color-primary);
+  --fzl-color-primary-active: var(--md-sys-color-primary);
+  --fzl-color-primary-contrast: var(--md-sys-color-on-primary);
+  --fzl-color-secondary: var(--md-sys-color-secondary);
+  --fzl-color-secondary-contrast: var(--md-sys-color-on-secondary);
+  --fzl-color-danger: var(--md-sys-color-error);
+  --fzl-color-danger-contrast: var(--md-sys-color-on-error);
+  --fzl-color-surface: var(--md-sys-color-surface);
+  --fzl-color-surface-muted: var(--md-sys-color-surface-container-low);
+  --fzl-color-border: var(--md-sys-color-outline-variant);
+  --fzl-color-border-hover: var(--md-sys-color-outline);
+  --fzl-color-text: var(--md-sys-color-on-surface);
+  --fzl-color-text-muted: var(--md-sys-color-on-surface-variant);
+  --fzl-color-disabled-bg: var(--md-sys-color-surface-variant);
+  --fzl-color-disabled-text: var(--md-sys-color-outline);
 }
 
 * {

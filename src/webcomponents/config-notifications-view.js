@@ -109,7 +109,6 @@ export class ConfigNotificationsView extends LitElement {
   render() {
     const disabled = this._busy || this._active === null || !pushService.isSupported() || this._permission === 'denied'
     return html`
-      <p class="breadcrumb">Config &rsaquo; Notificações</p>
       <h1>Notificações</h1>
       <label>
         Receber notificações neste aparelho

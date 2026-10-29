@@ -115,7 +115,6 @@ export class ConfigAccessibilityView extends LitElement {
     const sizes = config.textScales.map((s) => ({ value: s, label: `${Math.round(s * 100)}%` }))
 
     return html`
-      <p class="breadcrumb">Config &rsaquo; Acessibilidade</p>
       <h1>Acessibilidade</h1>
       <p class="hint">As escolhas valem na hora, em todo o app, e ficam salvas neste aparelho.</p>
 
