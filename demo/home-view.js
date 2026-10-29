@@ -111,6 +111,14 @@ export class HomeView extends LitElement {
         </dl>
         <a href="#/config/backend">Ver em Config → Backend</a>
       </div>
+
+      <h2>Web Components Showcase</h2>
+      <p>
+        Explore o catálogo interativo e a documentação dos componentes visuais (incluindo
+        <code>&lt;fzl-lit-button&gt;</code>, <code>&lt;fzl-lit-crumb&gt;</code> e os componentes do
+        appshell) pelo menu lateral <em>Web Components Showcase</em> ou diretamente pelo link abaixo:
+      </p>
+      <p><a href="#/showcase">Abrir Web Components Showcase →</a></p>
     `
   }
 }

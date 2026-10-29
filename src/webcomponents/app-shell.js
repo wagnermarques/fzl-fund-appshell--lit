@@ -466,7 +466,7 @@ export class AppShell extends LitElement {
         <md-list>
           ${items.map(
             (item) => html`
-              <md-list-item type="link" href=${item.href}>
+              <md-list-item type="link" href=${item.href} @click=${() => (this._drawerOpen = false)}>
                 ${item.icon ? html`<md-icon slot="start">${item.icon}</md-icon>` : ''}
                 ${item.label}
               </md-list-item>
